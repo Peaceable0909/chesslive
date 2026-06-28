@@ -3,6 +3,8 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Chess, Square } from "chess.js";
 import { Chessboard } from "react-chessboard";
+import Link from "next/link";
+import { createClient } from "@/lib/supabase";
 
 const PIECE_UNICODE: Record<string, string> = {
   wP: "♙", wN: "♘", wB: "♗", wR: "♖", wQ: "♕", wK: "♔",
@@ -69,6 +71,16 @@ export default function Home() {
   const [promotion, setPromotion] = useState<PromotionInfo>(null);
   const [moveHistory, setMoveHistory] = useState<string[]>([]);
   const historyRef = useRef<HTMLDivElement>(null);
+  const [authUser, setAuthUser] = useState<{ username?: string } | null>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      if (!data.user) return;
+      supabase.from("chesslive_profiles").select("username").eq("id", data.user.id).single()
+        .then(({ data: p }) => { if (p) setAuthUser({ username: p.username }); });
+    });
+  }, []);
 
   useEffect(() => {
     if (historyRef.current) historyRef.current.scrollTop = historyRef.current.scrollHeight;
@@ -180,9 +192,20 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-gray-950 flex flex-col items-center justify-center p-4">
-      <div className="mb-4 text-center">
-        <h1 className="text-2xl font-semibold text-white mb-0.5">♟ ChessLive</h1>
-        <p className="text-gray-500 text-xs">Stage 1 — Full FIDE rules via chess.js</p>
+      <div className="mb-4 flex items-center justify-between w-full max-w-[800px]">
+        <h1 className="text-xl font-bold text-white">♟ ChessLive</h1>
+        <div className="flex items-center gap-2">
+          {authUser ? (
+            <Link href="/profile" className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs rounded-lg transition-colors">
+              {authUser.username} →
+            </Link>
+          ) : (
+            <>
+              <Link href="/login" className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs rounded-lg transition-colors">Sign in</Link>
+              <Link href="/signup" className="px-3 py-1.5 bg-indigo-700 hover:bg-indigo-600 text-white text-xs rounded-lg font-medium transition-colors">Get 500 pts →</Link>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="flex gap-4 items-start w-full max-w-[800px]">
