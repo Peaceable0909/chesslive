@@ -78,7 +78,8 @@ export default function Home() {
     supabase.auth.getUser().then(({ data }) => {
       if (!data.user) return;
       supabase.from("chesslive_profiles").select("username").eq("id", data.user.id).single()
-        .then(({ data: p }) => { if (p) setAuthUser({ username: p.username }); });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .then(({ data: p }: { data: any }) => { if (p) setAuthUser({ username: p.username }); });
     });
   }, []);
 
