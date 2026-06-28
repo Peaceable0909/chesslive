@@ -28,13 +28,16 @@ function XPBar({ xp, level }: { xp: number; level: number }) {
   const xpNeeded = level * 500;
   const pct = Math.min(100, Math.round((xp / xpNeeded) * 100));
   return (
-    <div>
-      <div className="flex justify-between text-xs text-gray-500 mb-1">
-        <span>Level {level}</span>
-        <span>{xp} / {xpNeeded} XP</span>
+    <div className="w-full max-w-xs mx-auto space-y-1.5 mt-3">
+      <div className="flex justify-between font-[Geist] text-xs text-[#c8c5cc]">
+        <span>XP</span>
+        <span>{xp.toLocaleString()} / {xpNeeded.toLocaleString()}</span>
       </div>
-      <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
-        <div className="h-full bg-indigo-500 rounded-full transition-all duration-700" style={{ width: `${pct}%` }} />
+      <div className="h-2 w-full bg-[#333348] rounded-full overflow-hidden">
+        <div
+          className="h-full rounded-full transition-all duration-700"
+          style={{ width: `${pct}%`, background: "linear-gradient(90deg, #3d28bf 0%, #1a1a2e 100%)" }}
+        />
       </div>
     </div>
   );
@@ -49,11 +52,7 @@ export default function ProfilePage() {
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => {
       if (!data.user) { router.push("/login"); return; }
-      supabase
-        .from("chesslive_profiles")
-        .select("*")
-        .eq("id", data.user.id)
-        .single()
+      supabase.from("chesslive_profiles").select("*").eq("id", data.user.id).single()
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .then(({ data: p }: { data: any }) => {
           setProfile(p);
@@ -70,8 +69,8 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="text-gray-500 text-sm animate-pulse">Loading profile…</div>
+      <main className="min-h-screen bg-[#0D0D1A] flex items-center justify-center">
+        <div className="text-[#c8c5cc] text-sm font-[DM_Sans] animate-pulse">Loading profile…</div>
       </main>
     );
   }
@@ -82,92 +81,122 @@ export default function ProfilePage() {
   const nextRank = RANK_ORDER[rankIndex + 1];
 
   return (
-    <main className="min-h-screen bg-gray-950 p-4">
-      <div className="max-w-sm mx-auto pt-8">
+    <div className="min-h-screen bg-[#0D0D1A] pb-28 md:pb-12">
 
-        {/* Top nav */}
-        <div className="flex items-center justify-between mb-8">
-          <Link href="/" className="text-gray-500 hover:text-gray-300 text-sm">← Board</Link>
-          <button onClick={handleSignOut} className="text-gray-500 hover:text-gray-300 text-sm">Sign out</button>
+      {/* Top bar */}
+      <header className="fixed top-0 w-full z-50 bg-[#111125]/80 backdrop-blur-xl border-b border-white/[0.06]">
+        <div className="flex justify-between items-center px-5 h-16 max-w-[1440px] mx-auto">
+          <Link href="/" className="text-[#c8c5cc] hover:text-[#e2e0fc] transition-colors">
+            <span className="material-symbols-outlined">arrow_back</span>
+          </Link>
+          <h1 className="font-[Sora] text-lg font-semibold text-[#c7c4d7]">Profile</h1>
+          <button onClick={handleSignOut} className="text-[#c8c5cc] hover:text-[#e2e0fc] transition-colors">
+            <span className="material-symbols-outlined">logout</span>
+          </button>
         </div>
+      </header>
 
-        {/* Avatar + rank */}
-        <div className="text-center mb-6">
-          <div className="w-20 h-20 mx-auto bg-indigo-900/40 border-2 border-indigo-700 rounded-full flex items-center justify-center text-4xl mb-3">
+      <main className="pt-20 px-5 space-y-5 max-w-lg mx-auto">
+
+        {/* Profile hero */}
+        <section className="flex flex-col items-center text-center space-y-3 pt-4">
+          <div className="w-24 h-24 rounded-full bg-[#1e1e32] border-2 border-[#c5c0ff] flex items-center justify-center text-5xl shadow-[0_0_20px_rgba(124,111,255,0.6)]">
             {RANK_ICONS[profile.rank] || "♟"}
           </div>
-          <h1 className="text-xl font-bold text-white">{profile.username}</h1>
-          <div className="flex items-center justify-center gap-2 mt-1">
-            <span className="text-xs bg-indigo-900/60 text-indigo-300 px-2 py-0.5 rounded-full font-medium">
-              {profile.rank}
-            </span>
-            <span className="text-xs text-gray-500">Level {profile.level}</span>
+          <div>
+            <h2 className="font-[Sora] text-2xl font-bold text-[#e2e0fc]">{profile.username}</h2>
+            <p className="font-[Geist] text-sm text-[#c8c5cc] mt-1 flex items-center justify-center gap-1.5">
+              <span>{RANK_ICONS[profile.rank]}</span>
+              {profile.rank} · Level {profile.level}
+            </p>
           </div>
-        </div>
-
-        {/* XP bar */}
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-4">
           <XPBar xp={profile.xp} level={profile.level} />
           {nextRank && (
-            <p className="text-xs text-gray-600 mt-2 text-center">Reach {nextRank} by earning XP in live games</p>
+            <p className="text-xs text-[#47464c] font-[Geist]">Reach {nextRank} by earning XP in live games</p>
           )}
-        </div>
+        </section>
 
         {/* Points balance */}
-        <div className="bg-gradient-to-br from-indigo-900/40 to-purple-900/20 border border-indigo-800/50 rounded-xl p-4 mb-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-indigo-300/70 mb-0.5">Points balance</p>
-              <p className="text-3xl font-bold text-white">{profile.points.toLocaleString()}</p>
-              <p className="text-xs text-indigo-400 mt-0.5">pts</p>
-            </div>
-            <div className="text-4xl opacity-20">♟</div>
+        <section className="glass-card rounded-2xl p-6 relative overflow-hidden">
+          <div className="absolute -right-6 -bottom-6 opacity-10 pointer-events-none">
+            <span className="material-symbols-outlined text-9xl text-[#fabd00]" style={{ fontVariationSettings: "'FILL' 1" }}>stars</span>
           </div>
-        </div>
+          <p className="font-[Geist] text-xs tracking-widest text-[#c8c5cc] uppercase mb-2">Total Points</p>
+          <p className="font-[Geist] text-5xl font-bold text-[#fabd00]">{profile.points.toLocaleString()}</p>
+        </section>
 
         {/* Stats grid */}
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-            <p className="text-xs text-gray-500 mb-1">Reputation</p>
-            <p className="text-2xl font-bold text-white">{profile.reputation}</p>
-            <div className="h-1 bg-gray-800 rounded-full mt-2 overflow-hidden">
-              <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${profile.reputation}%` }} />
+        <section className="grid grid-cols-2 gap-4">
+          <div className="glass-card rounded-xl p-4 flex flex-col justify-between h-28">
+            <p className="font-[Geist] text-xs tracking-wide text-[#c8c5cc]">Reputation</p>
+            <div>
+              <div className="flex items-end gap-1.5">
+                <p className="font-[Sora] text-2xl font-bold text-[#e2e0fc]">{profile.reputation}</p>
+                <span className="font-[Geist] text-xs text-[#00E676] mb-0.5">/ 100</span>
+              </div>
+              <div className="h-1.5 bg-[#333348] rounded-full mt-2 overflow-hidden">
+                <div className="h-full bg-[#00E676] rounded-full" style={{ width: `${profile.reputation}%` }} />
+              </div>
             </div>
-            <p className="text-xs text-gray-600 mt-1">/ 100</p>
           </div>
 
-          <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-            <p className="text-xs text-gray-500 mb-1">Games played</p>
-            <p className="text-2xl font-bold text-white">{profile.games_played}</p>
-            <p className="text-xs text-gray-600 mt-1">Live games voted in</p>
+          <div className="glass-card rounded-xl p-4 flex flex-col justify-between h-28">
+            <p className="font-[Geist] text-xs tracking-wide text-[#c8c5cc]">Games Played</p>
+            <p className="font-[Sora] text-2xl font-bold text-[#e2e0fc]">{profile.games_played}</p>
           </div>
 
-          <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-            <p className="text-xs text-gray-500 mb-1">Engine accuracy</p>
-            <p className="text-2xl font-bold text-white">{profile.engine_accuracy > 0 ? `${profile.engine_accuracy}%` : "—"}</p>
-            <p className="text-xs text-gray-600 mt-1">Match Stockfish</p>
+          <div className="glass-card rounded-xl p-4 flex flex-col justify-between h-28">
+            <p className="font-[Geist] text-xs tracking-wide text-[#c8c5cc]">Engine Acc</p>
+            <p className="font-[Sora] text-2xl font-bold text-[#e2e0fc]">
+              {profile.engine_accuracy > 0 ? `${profile.engine_accuracy}%` : "—"}
+            </p>
           </div>
 
-          <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-            <p className="text-xs text-gray-500 mb-1">Brilliant moves</p>
-            <p className="text-2xl font-bold text-white">{profile.brilliant_moves}</p>
-            <p className="text-xs text-gray-600 mt-1">💎 Found</p>
+          <div className="glass-card rounded-xl p-4 flex flex-col justify-between h-28">
+            <p className="font-[Geist] text-xs tracking-wide text-[#c8c5cc]">Brilliant Moves</p>
+            <p className="font-[Sora] text-2xl font-bold text-[#fabd00]">{profile.brilliant_moves}</p>
           </div>
-        </div>
+        </section>
 
         {/* Reputation note */}
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-6">
-          <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-1">Reputation Score</p>
-          <p className="text-xs text-gray-400">Built through fair play, consistency, and positive contributions. <span className="text-gray-500">Cannot be purchased.</span></p>
-        </div>
+        <section className="glass-card rounded-xl p-4">
+          <p className="font-[Geist] text-xs tracking-widest text-[#c8c5cc] uppercase mb-2">Reputation Score</p>
+          <p className="font-[DM_Sans] text-sm text-[#c8c5cc]">
+            Built through fair play, consistency, and positive contributions.{" "}
+            <span className="text-[#47464c]">Cannot be purchased.</span>
+          </p>
+        </section>
 
         <Link
           href="/"
-          className="block w-full py-3 bg-indigo-700 hover:bg-indigo-600 text-white text-center font-medium rounded-xl text-sm transition-colors"
+          className="flex items-center justify-center gap-2 w-full py-3.5 bg-[#3d28bf] hover:bg-[#4a35d0] text-white text-center font-[Sora] font-semibold rounded-xl transition-all shadow-[0_0_15px_rgba(61,40,191,0.4)] hover:shadow-[0_0_25px_rgba(61,40,191,0.6)]"
         >
-          ♟ Play Chess
+          <span className="material-symbols-outlined text-lg">chess</span>
+          Play Chess
         </Link>
-      </div>
-    </main>
+      </main>
+
+      {/* Bottom nav mobile */}
+      <nav className="fixed bottom-0 w-full z-50 rounded-t-2xl bg-[#1e1e32]/95 backdrop-blur-lg border-t border-white/[0.06] shadow-[0_-4px_20px_rgba(0,0,0,0.4)] md:hidden">
+        <div className="flex justify-around items-center h-20 px-2">
+          <Link href="/" className="flex flex-col items-center gap-1 text-[#c8c5cc] hover:text-[#e2e0fc] px-4 py-1.5 rounded-xl">
+            <span className="material-symbols-outlined text-xl">home</span>
+            <span className="text-[10px] font-[Geist] tracking-wide">Home</span>
+          </Link>
+          <Link href="#" className="flex flex-col items-center gap-1 text-[#c8c5cc] hover:text-[#e2e0fc] px-4 py-1.5 rounded-xl">
+            <span className="material-symbols-outlined text-xl">sensors</span>
+            <span className="text-[10px] font-[Geist] tracking-wide">Live</span>
+          </Link>
+          <Link href="#" className="flex flex-col items-center gap-1 text-[#c8c5cc] hover:text-[#e2e0fc] px-4 py-1.5 rounded-xl">
+            <span className="material-symbols-outlined text-xl">grid_view</span>
+            <span className="text-[10px] font-[Geist] tracking-wide">Play</span>
+          </Link>
+          <Link href="/profile" className="flex flex-col items-center gap-1 text-[#c5c0ff] bg-[#3d28bf]/20 rounded-xl px-4 py-1.5">
+            <span className="material-symbols-outlined text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>person</span>
+            <span className="text-[10px] font-[Geist] tracking-wide">Profile</span>
+          </Link>
+        </div>
+      </nav>
+    </div>
   );
 }

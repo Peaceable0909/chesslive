@@ -4,10 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 
-const RANK_ICONS: Record<string, string> = {
-  Pawn: "♟", Knight: "♞", Bishop: "♝", Rook: "♜", Queen: "♛", King: "♚", Grandmaster: "♛", Legend: "★",
-};
-
 export default function WelcomePage() {
   const router = useRouter();
   const [username, setUsername] = useState("");
@@ -17,14 +13,13 @@ export default function WelcomePage() {
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => {
       if (!data.user) { router.push("/login"); return; }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       supabase.from("chesslive_profiles").select("username").eq("id", data.user.id).single()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .then(({ data: profile }: { data: any }) => {
           if (profile) setUsername(profile.username);
         });
     });
 
-    // Animate points reveal
     const timers = [
       setTimeout(() => setAnimStep(1), 400),
       setTimeout(() => setAnimStep(2), 900),
@@ -34,52 +29,79 @@ export default function WelcomePage() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
-      <div className="text-center max-w-sm w-full">
-        <div className="text-6xl mb-6 animate-bounce">♟</div>
+    <main
+      className="min-h-screen flex items-center justify-center p-4"
+      style={{ background: "radial-gradient(circle at center, rgba(124,111,255,0.1) 0%, #0d0d1a 65%)" }}
+    >
+      <div className="w-full max-w-sm flex flex-col items-center text-center">
 
-        <h1 className="text-2xl font-bold text-white mb-2">
-          Welcome{username ? `, ${username}` : ""}!
-        </h1>
-        <p className="text-gray-400 text-sm mb-8">You're in. Here's your starting gift.</p>
+        {/* Icon */}
+        <div className={`w-24 h-24 rounded-full bg-[#1e1e32] border-2 border-[#3d28bf] flex items-center justify-center mb-6 transition-all duration-700 ${animStep >= 1 ? "glow-pulse-anim scale-100 opacity-100" : "scale-75 opacity-0"}`}>
+          <span className="material-symbols-outlined text-5xl text-[#c5c0ff]" style={{ fontVariationSettings: "'FILL' 1" }}>chess</span>
+        </div>
 
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 mb-6">
-          <div className={`transition-all duration-500 ${animStep >= 1 ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
-            <div className="flex items-center justify-between py-3 border-b border-gray-800">
-              <span className="text-gray-400 text-sm">Welcome bonus</span>
-              <span className="text-emerald-400 font-bold text-lg">+500 pts</span>
+        {/* Title */}
+        <div className={`transition-all duration-500 ${animStep >= 1 ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+          <h1 className="font-[Sora] text-2xl font-bold text-[#e2e0fc] mb-2">
+            Welcome{username ? `, ${username}` : ""}!
+          </h1>
+          <p className="font-[DM_Sans] text-[#c8c5cc] text-base mb-8">You&apos;re in. Here&apos;s your starting gift.</p>
+        </div>
+
+        {/* Reveal card */}
+        <div className="w-full bg-[#1a1a2e]/80 backdrop-blur-xl border border-white/[0.06] rounded-2xl overflow-hidden mb-6 shadow-2xl">
+
+          <div className={`flex items-center justify-between px-6 py-4 border-b border-white/[0.06] transition-all duration-500 ${animStep >= 1 ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-[#fabd00]/10 border border-[#fabd00]/20 flex items-center justify-center">
+                <span className="material-symbols-outlined text-[#fabd00] text-lg">stars</span>
+              </div>
+              <span className="font-[DM_Sans] text-[#c8c5cc] text-sm">Welcome bonus</span>
             </div>
+            <span className="font-[Geist] text-lg font-bold text-[#00E676]">+500 pts</span>
           </div>
 
-          <div className={`transition-all duration-500 delay-200 ${animStep >= 2 ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
-            <div className="flex items-center justify-between py-3 border-b border-gray-800">
-              <span className="text-gray-400 text-sm">Starting rank</span>
-              <span className="text-white font-medium">{RANK_ICONS.Pawn} Pawn</span>
+          <div className={`flex items-center justify-between px-6 py-4 border-b border-white/[0.06] transition-all duration-500 delay-200 ${animStep >= 2 ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-[#3d28bf]/20 border border-[#3d28bf]/30 flex items-center justify-center">
+                <span className="material-symbols-outlined text-[#c5c0ff] text-lg">military_tech</span>
+              </div>
+              <span className="font-[DM_Sans] text-[#c8c5cc] text-sm">Starting rank</span>
             </div>
+            <span className="font-[DM_Sans] text-[#e2e0fc] font-medium">♟ Pawn</span>
           </div>
 
-          <div className={`transition-all duration-500 delay-500 ${animStep >= 3 ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
-            <div className="flex items-center justify-between py-3">
-              <span className="text-gray-400 text-sm">Reputation</span>
-              <span className="text-indigo-400 font-medium">50 / 100</span>
+          <div className={`flex items-center justify-between px-6 py-4 transition-all duration-500 delay-500 ${animStep >= 3 ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-[#00E676]/10 border border-[#00E676]/20 flex items-center justify-center">
+                <span className="material-symbols-outlined text-[#00E676] text-lg">verified</span>
+              </div>
+              <span className="font-[DM_Sans] text-[#c8c5cc] text-sm">Reputation</span>
             </div>
+            <span className="font-[Geist] text-[#c5c0ff] font-medium">50 / 100</span>
           </div>
         </div>
 
-        <div className={`transition-all duration-500 ${animStep >= 3 ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+        {/* CTAs */}
+        <div className={`w-full flex flex-col gap-3 transition-all duration-500 ${animStep >= 3 ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
           <button
             onClick={() => router.push("/profile")}
-            className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-sm transition-colors mb-3"
+            className="w-full py-3.5 bg-[#3d28bf] hover:bg-[#4a35d0] text-white font-[Sora] font-semibold rounded-xl transition-all shadow-[0_0_20px_rgba(61,40,191,0.4)] hover:shadow-[0_0_30px_rgba(61,40,191,0.6)] flex items-center justify-center gap-2"
           >
-            View my profile →
+            View my profile
+            <span className="material-symbols-outlined text-lg">arrow_forward</span>
           </button>
           <button
             onClick={() => router.push("/")}
-            className="w-full py-3 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl text-sm transition-colors"
+            className="w-full py-3.5 bg-[#1e1e32] hover:bg-[#28283d] border border-white/[0.06] text-[#c8c5cc] font-[DM_Sans] rounded-xl transition-colors"
           >
             Play chess now
           </button>
         </div>
+
+        <p className="font-[Geist] text-xs text-[#c8c5cc]/40 mt-8 leading-relaxed">
+          Points cannot buy rank...<br />Your skill is always earned.
+        </p>
       </div>
     </main>
   );

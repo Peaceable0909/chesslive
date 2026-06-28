@@ -6,6 +6,8 @@ import { Chessboard } from "react-chessboard";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 
+// ─── Piece data ───────────────────────────────────────────────────────────────
+
 const PIECE_UNICODE: Record<string, string> = {
   wP: "♙", wN: "♘", wB: "♗", wR: "♖", wQ: "♕", wK: "♔",
   bP: "♟", bN: "♞", bB: "♝", bR: "♜", bQ: "♛", bK: "♚",
@@ -14,6 +16,8 @@ const PIECE_UNICODE: Record<string, string> = {
 const PIECE_VALUES: Record<string, number> = {
   p: 1, n: 3, b: 3, r: 5, q: 9, k: 0,
 };
+
+// ─── Captured pieces helpers ──────────────────────────────────────────────────
 
 function getCapturedPieces(game: Chess) {
   const initW: Record<string, number> = { P: 8, N: 2, B: 2, R: 2, Q: 1 };
@@ -29,7 +33,6 @@ function getCapturedPieces(game: Chess) {
 
   const capturedByWhite: string[] = [];
   const capturedByBlack: string[] = [];
-
   Object.entries(initB).forEach(([p, count]) => {
     const remaining = curB[p] || 0;
     for (let i = 0; i < count - remaining; i++) capturedByWhite.push(`b${p.toUpperCase()}`);
@@ -38,7 +41,6 @@ function getCapturedPieces(game: Chess) {
     const remaining = curW[p] || 0;
     for (let i = 0; i < count - remaining; i++) capturedByBlack.push(`w${p}`);
   });
-
   return { capturedByWhite, capturedByBlack };
 }
 
@@ -51,16 +53,54 @@ function getMaterialAdvantage(capturedByWhite: string[], capturedByBlack: string
 function CapturedPieces({ pieces, advantage }: { pieces: string[]; advantage: number }) {
   const sorted = [...pieces].sort((a, b) => (PIECE_VALUES[b[1].toLowerCase()] || 0) - (PIECE_VALUES[a[1].toLowerCase()] || 0));
   return (
-    <div className="flex items-center gap-1 h-6 min-w-[80px]">
+    <div className="flex items-center gap-0.5 h-6 min-w-[80px]">
       {sorted.map((p, i) => (
-        <span key={i} className="text-lg leading-none opacity-90">{PIECE_UNICODE[p]}</span>
+        <span key={i} className="text-base leading-none opacity-80">{PIECE_UNICODE[p]}</span>
       ))}
-      {advantage > 0 && <span className="text-xs text-gray-400 ml-1">+{advantage}</span>}
+      {advantage > 0 && <span className="text-xs text-[#c8c5cc] ml-1.5 font-[Geist]">+{advantage}</span>}
     </div>
   );
 }
 
 type PromotionInfo = { from: Square; to: Square; color: "w" | "b" } | null;
+
+// ─── Nav bar ─────────────────────────────────────────────────────────────────
+
+function NavBar({ username }: { username?: string }) {
+  return (
+    <header className="fixed top-0 w-full z-50 bg-[#111125]/80 backdrop-blur-xl border-b border-white/[0.06] shadow-[0_0_20px_rgba(199,196,215,0.05)]">
+      <div className="flex justify-between items-center px-5 md:px-10 h-16 max-w-[1440px] mx-auto">
+        {/* Logo */}
+        <Link href="/" className="font-[Sora] text-lg font-bold tracking-tighter text-[#c7c4d7]">
+          CHESSLIVE
+        </Link>
+        {/* Nav links desktop */}
+        <nav className="hidden md:flex gap-8 items-center">
+          <Link href="/" className="text-sm text-[#c7c4d7] font-medium border-b border-[#c7c4d7] pb-0.5">Board</Link>
+          <Link href="#" className="text-sm text-[#c8c5cc] hover:text-[#e2e0fc] transition-colors">Live</Link>
+          <Link href="#" className="text-sm text-[#c8c5cc] hover:text-[#e2e0fc] transition-colors">Leaderboard</Link>
+        </nav>
+        {/* Auth */}
+        <div className="flex items-center gap-2">
+          {username ? (
+            <Link href="/profile" className="px-4 py-1.5 bg-[#1e1e32] hover:bg-[#28283d] text-[#e2e0fc] text-sm rounded-lg transition-colors border border-white/[0.06]">
+              {username} →
+            </Link>
+          ) : (
+            <>
+              <Link href="/login" className="px-4 py-1.5 text-[#c8c5cc] hover:text-[#e2e0fc] text-sm transition-colors">Sign in</Link>
+              <Link href="/signup" className="px-4 py-1.5 bg-[#3d28bf] hover:bg-[#4a35d0] text-white text-sm rounded-lg font-medium transition-colors shadow-[0_0_12px_rgba(61,40,191,0.4)]">
+                Get 500 pts →
+              </Link>
+            </>
+          )}
+        </div>
+      </div>
+    </header>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
 
 export default function Home() {
   const [game, setGame] = useState(new Chess());
@@ -100,12 +140,10 @@ export default function Home() {
   }
 
   function tryMove(sourceSquare: Square, targetSquare: Square): boolean {
-    // check if promotion
     const piece = game.get(sourceSquare);
     const isPromotion = piece?.type === "p" &&
       ((piece.color === "w" && targetSquare[1] === "8") ||
        (piece.color === "b" && targetSquare[1] === "1"));
-
     if (isPromotion) {
       setPromotion({ from: sourceSquare, to: targetSquare, color: piece.color });
       return true;
@@ -122,12 +160,11 @@ export default function Home() {
         const moves = game.moves({ square: selectedSquare, verbose: true });
         const isLegal = moves.some((m) => (m as { to: string }).to === sq);
         if (!isLegal) {
-          // try selecting new piece
           const newMoves = game.moves({ square: sq, verbose: true });
           if (newMoves.length > 0) {
             setSelectedSquare(sq);
-            const h: Record<string, React.CSSProperties> = { [sq]: { background: "rgba(99,102,241,0.3)" } };
-            newMoves.forEach((m) => { h[(m as { to: string }).to] = { background: "rgba(99,102,241,0.4)", borderRadius: "50%" }; });
+            const h: Record<string, React.CSSProperties> = { [sq]: { background: "rgba(61,40,191,0.3)" } };
+            newMoves.forEach((m) => { h[(m as { to: string }).to] = { background: "rgba(61,40,191,0.4)", borderRadius: "50%" }; });
             setLegalSquares(h);
           } else {
             setSelectedSquare(null);
@@ -139,8 +176,8 @@ export default function Home() {
       const moves = game.moves({ square: sq, verbose: true });
       if (moves.length > 0 && game.get(sq)?.color === game.turn()) {
         setSelectedSquare(sq);
-        const h: Record<string, React.CSSProperties> = { [sq]: { background: "rgba(99,102,241,0.3)" } };
-        moves.forEach((m) => { h[(m as { to: string }).to] = { background: "rgba(99,102,241,0.4)", borderRadius: "50%" }; });
+        const h: Record<string, React.CSSProperties> = { [sq]: { background: "rgba(61,40,191,0.3)" } };
+        moves.forEach((m) => { h[(m as { to: string }).to] = { background: "rgba(61,40,191,0.4)", borderRadius: "50%" }; });
         setLegalSquares(h);
       }
     }
@@ -160,15 +197,14 @@ export default function Home() {
 
   const squareStyles: Record<string, React.CSSProperties> = { ...legalSquares };
   if (lastMove) {
-    squareStyles[lastMove.from] = { ...(squareStyles[lastMove.from] || {}), background: "rgba(255,255,100,0.25)" };
-    squareStyles[lastMove.to] = { ...(squareStyles[lastMove.to] || {}), background: "rgba(255,255,100,0.35)" };
+    squareStyles[lastMove.from] = { ...(squareStyles[lastMove.from] || {}), background: "rgba(250,189,0,0.2)" };
+    squareStyles[lastMove.to] = { ...(squareStyles[lastMove.to] || {}), background: "rgba(250,189,0,0.35)" };
   }
   if (game.isCheck()) {
-    const board = game.board();
-    for (const row of board) {
+    for (const row of game.board()) {
       for (const sq of row) {
         if (sq && sq.type === "k" && sq.color === game.turn()) {
-          squareStyles[sq.square] = { background: "rgba(220,38,38,0.6)" };
+          squareStyles[sq.square] = { background: "rgba(255,75,75,0.55)" };
         }
       }
     }
@@ -192,122 +228,120 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-gray-950 flex flex-col items-center justify-center p-4">
-      <div className="mb-4 flex items-center justify-between w-full max-w-[800px]">
-        <h1 className="text-xl font-bold text-white">♟ ChessLive</h1>
-        <div className="flex items-center gap-2">
-          {authUser ? (
-            <Link href="/profile" className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs rounded-lg transition-colors">
-              {authUser.username} →
-            </Link>
-          ) : (
-            <>
-              <Link href="/login" className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs rounded-lg transition-colors">Sign in</Link>
-              <Link href="/signup" className="px-3 py-1.5 bg-indigo-700 hover:bg-indigo-600 text-white text-xs rounded-lg font-medium transition-colors">Get 500 pts →</Link>
-            </>
-          )}
+    <div className="min-h-screen bg-[#0D0D1A]">
+      <NavBar username={authUser?.username} />
+
+      {/* Live ticker */}
+      <div className="w-full bg-[#333348] border-b border-white/[0.06] mt-16 py-2 overflow-hidden flex items-center gap-2">
+        <div className="w-2 h-2 rounded-full bg-[#FF4B4B] pulse-dot ml-4 shrink-0" />
+        <div className="ticker-wrap flex-1">
+          <div className="ticker font-[Geist] text-xs tracking-wider text-[#c8c5cc] uppercase">
+            42 games live · 18,406 voting · 1,247 moves/min · Biggest pool: 25,000 pts · Grandmaster Tournament in 14:02
+          </div>
         </div>
       </div>
 
-      <div className="flex gap-4 items-start w-full max-w-[800px]">
+      {/* Board section */}
+      <main className="max-w-[900px] mx-auto px-4 py-8">
 
-        {/* BOARD + PLAYERS */}
-        <div className="flex flex-col flex-1 min-w-0">
+        {/* Player + board layout */}
+        <div className="flex gap-5 items-start">
 
-          {/* Black player */}
-          <div className="flex items-center justify-between mb-2 px-1">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-full bg-gray-700 flex items-center justify-center text-sm">♚</div>
-              <span className="text-sm text-white font-medium">Black</span>
-            </div>
-            <CapturedPieces pieces={capturedByBlack} advantage={advantage < 0 ? Math.abs(advantage) : 0} />
-          </div>
+          {/* Left: board + players */}
+          <div className="flex flex-col flex-1 min-w-0">
 
-          {/* Board */}
-          <div className="w-full">
-            <Chessboard
-              options={{
-                position: game.fen(),
-                boardOrientation: boardFlipped ? "black" : "white",
-                onPieceDrop: ({ sourceSquare, targetSquare }) => {
-                  if (!targetSquare) return false;
-                  return tryMove(sourceSquare as Square, targetSquare as Square);
-                },
-                onSquareClick,
-                squareStyles,
-                boardStyle: { borderRadius: "6px", boxShadow: "0 4px 32px rgba(0,0,0,0.6)" },
-                darkSquareStyle: { backgroundColor: "#4a3728" },
-                lightSquareStyle: { backgroundColor: "#e8c888" },
-                allowDragging: !isGameOver,
-              }}
-            />
-          </div>
-
-          {/* White player */}
-          <div className="flex items-center justify-between mt-2 px-1">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-sm text-gray-900">♔</div>
-              <span className="text-sm text-white font-medium">White</span>
-            </div>
-            <CapturedPieces pieces={capturedByWhite} advantage={advantage > 0 ? advantage : 0} />
-          </div>
-
-          {/* Status + controls */}
-          <div className="mt-3 flex items-center gap-2">
-            <div className={`flex-1 px-3 py-2 rounded-lg text-sm text-center font-medium ${
-              isGameOver ? "bg-amber-900/40 text-amber-300" :
-              game.isCheck() ? "bg-red-900/40 text-red-300" :
-              "bg-gray-800 text-gray-200"
-            }`}>{status}</div>
-            <button
-              onClick={() => setBoardFlipped(f => !f)}
-              className="px-3 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm rounded-lg transition-colors"
-              title="Flip board"
-            >⇅</button>
-            <button
-              onClick={resetGame}
-              className="px-3 py-2 bg-indigo-700 hover:bg-indigo-600 text-white text-sm rounded-lg transition-colors"
-            >New game</button>
-          </div>
-        </div>
-
-        {/* MOVE HISTORY */}
-        <div className="w-44 bg-gray-900 rounded-lg border border-gray-800 flex flex-col overflow-hidden">
-          <div className="px-3 py-2 text-xs font-medium text-gray-400 border-b border-gray-800 uppercase tracking-wider">
-            Moves
-          </div>
-          <div ref={historyRef} className="flex-1 overflow-y-auto max-h-[420px] p-1">
-            {pairMoves(moveHistory).length === 0 && (
-              <p className="text-gray-600 text-xs text-center py-4">No moves yet</p>
-            )}
-            {pairMoves(moveHistory).map(([white, black], i) => (
-              <div key={i} className="flex text-xs mb-0.5">
-                <span className="w-7 text-gray-600 px-1 py-0.5 shrink-0">{i + 1}.</span>
-                <span className="flex-1 px-1 py-0.5 text-gray-200 hover:bg-gray-800 rounded cursor-pointer">{white}</span>
-                {black && <span className="flex-1 px-1 py-0.5 text-gray-200 hover:bg-gray-800 rounded cursor-pointer">{black}</span>}
+            {/* Black player row */}
+            <div className="flex items-center justify-between mb-2 px-1">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-[#1e1e32] border border-white/[0.06] flex items-center justify-center text-base">♚</div>
+                <span className="text-sm text-[#e2e0fc] font-medium font-[DM_Sans]">Black</span>
               </div>
-            ))}
+              <CapturedPieces pieces={capturedByBlack} advantage={advantage < 0 ? Math.abs(advantage) : 0} />
+            </div>
+
+            {/* Board */}
+            <div className="w-full rounded-xl overflow-hidden shadow-[0_0_40px_rgba(61,40,191,0.15)]">
+              <Chessboard
+                options={{
+                  position: game.fen(),
+                  boardOrientation: boardFlipped ? "black" : "white",
+                  onPieceDrop: ({ sourceSquare, targetSquare }) => {
+                    if (!targetSquare) return false;
+                    return tryMove(sourceSquare as Square, targetSquare as Square);
+                  },
+                  onSquareClick,
+                  squareStyles,
+                  boardStyle: { borderRadius: "12px", boxShadow: "none" },
+                  darkSquareStyle: { backgroundColor: "#4a3728" },
+                  lightSquareStyle: { backgroundColor: "#e8c888" },
+                  allowDragging: !isGameOver,
+                }}
+              />
+            </div>
+
+            {/* White player row */}
+            <div className="flex items-center justify-between mt-2 px-1">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-[#e8c888] flex items-center justify-center text-base text-[#1a1a28]">♔</div>
+                <span className="text-sm text-[#e2e0fc] font-medium font-[DM_Sans]">White</span>
+              </div>
+              <CapturedPieces pieces={capturedByWhite} advantage={advantage > 0 ? advantage : 0} />
+            </div>
+
+            {/* Status + controls */}
+            <div className="mt-3 flex items-center gap-2">
+              <div className={`flex-1 px-4 py-2.5 rounded-xl text-sm text-center font-medium font-[Sora] transition-colors ${
+                isGameOver ? "bg-[#150d00] border border-[#fabd00]/30 text-[#fabd00]" :
+                game.isCheck() ? "bg-[#93000a]/40 border border-[#FF4B4B]/30 text-[#FF4B4B]" :
+                "bg-[#1e1e32] border border-white/[0.06] text-[#c8c5cc]"
+              }`}>{status}</div>
+              <button
+                onClick={() => setBoardFlipped(f => !f)}
+                className="px-3 py-2.5 bg-[#1e1e32] hover:bg-[#28283d] border border-white/[0.06] text-[#c8c5cc] text-sm rounded-xl transition-colors"
+                title="Flip board"
+              >⇅</button>
+              <button
+                onClick={resetGame}
+                className="px-4 py-2.5 bg-[#3d28bf] hover:bg-[#4a35d0] text-white text-sm rounded-xl font-medium transition-colors shadow-[0_0_12px_rgba(61,40,191,0.3)]"
+              >New game</button>
+            </div>
           </div>
-          <div className="px-3 py-2 border-t border-gray-800 text-xs text-gray-500">
-            {moveHistory.length} move{moveHistory.length !== 1 ? "s" : ""}
+
+          {/* Right: move history */}
+          <div className="w-44 bg-[#1e1e32] rounded-xl border border-white/[0.06] flex flex-col overflow-hidden shadow-[0_0_20px_rgba(0,0,0,0.3)]">
+            <div className="px-3 py-2.5 text-xs font-medium text-[#c8c5cc] border-b border-white/[0.06] uppercase tracking-wider font-[Geist]">
+              Moves
+            </div>
+            <div ref={historyRef} className="flex-1 overflow-y-auto max-h-[420px] p-1">
+              {pairMoves(moveHistory).length === 0 && (
+                <p className="text-[#47464c] text-xs text-center py-6 font-[DM_Sans]">No moves yet</p>
+              )}
+              {pairMoves(moveHistory).map(([white, black], i) => (
+                <div key={i} className="flex text-xs mb-0.5 rounded">
+                  <span className="w-7 text-[#47464c] px-1 py-1 shrink-0 font-[Geist]">{i + 1}.</span>
+                  <span className="flex-1 px-1 py-1 text-[#e2e0fc] hover:bg-[#28283d] rounded cursor-pointer font-[DM_Sans]">{white}</span>
+                  {black && <span className="flex-1 px-1 py-1 text-[#e2e0fc] hover:bg-[#28283d] rounded cursor-pointer font-[DM_Sans]">{black}</span>}
+                </div>
+              ))}
+            </div>
+            <div className="px-3 py-2 border-t border-white/[0.06] text-xs text-[#47464c] font-[Geist]">
+              {moveHistory.length} move{moveHistory.length !== 1 ? "s" : ""}
+            </div>
           </div>
         </div>
-      </div>
+      </main>
 
-      {/* PROMOTION DIALOG */}
+      {/* Promotion dialog */}
       {promotion && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-          <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 text-center">
-            <p className="text-white text-sm font-medium mb-4">Choose promotion piece</p>
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-[#1e1e32] border border-white/[0.06] rounded-2xl p-6 text-center shadow-2xl">
+            <p className="text-[#e2e0fc] text-sm font-medium mb-4 font-[Sora]">Choose promotion piece</p>
             <div className="flex gap-3">
               {(["q", "r", "b", "n"] as const).map((p) => (
                 <button
                   key={p}
-                  onClick={() => {
-                    applyMove(promotion.from, promotion.to, p);
-                    setPromotion(null);
-                  }}
-                  className="w-14 h-14 bg-gray-800 hover:bg-indigo-700 rounded-lg text-3xl flex items-center justify-center transition-colors"
+                  onClick={() => { applyMove(promotion.from, promotion.to, p); setPromotion(null); }}
+                  className="w-14 h-14 bg-[#28283d] hover:bg-[#3d28bf] border border-white/[0.06] hover:border-[#3d28bf] rounded-xl text-3xl flex items-center justify-center transition-all"
                 >
                   {PIECE_UNICODE[`${promotion.color}${p.toUpperCase()}`]}
                 </button>
@@ -316,6 +350,28 @@ export default function Home() {
           </div>
         </div>
       )}
-    </main>
+
+      {/* Bottom nav mobile */}
+      <nav className="fixed bottom-0 w-full z-50 rounded-t-2xl bg-[#1e1e32]/95 backdrop-blur-lg border-t border-white/[0.06] shadow-[0_-4px_20px_rgba(0,0,0,0.4)] md:hidden">
+        <div className="flex justify-around items-center h-20 px-2">
+          <Link href="/" className="flex flex-col items-center gap-1 text-[#c5c0ff] bg-[#3d28bf]/20 rounded-xl px-4 py-1.5">
+            <span className="material-symbols-outlined text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>home</span>
+            <span className="text-[10px] font-[Geist] tracking-wide">Home</span>
+          </Link>
+          <Link href="#" className="flex flex-col items-center gap-1 text-[#c8c5cc] hover:text-[#e2e0fc] px-4 py-1.5 rounded-xl">
+            <span className="material-symbols-outlined text-xl">sensors</span>
+            <span className="text-[10px] font-[Geist] tracking-wide">Live</span>
+          </Link>
+          <Link href="#" className="flex flex-col items-center gap-1 text-[#c8c5cc] hover:text-[#e2e0fc] px-4 py-1.5 rounded-xl">
+            <span className="material-symbols-outlined text-xl">grid_view</span>
+            <span className="text-[10px] font-[Geist] tracking-wide">Play</span>
+          </Link>
+          <Link href="/profile" className="flex flex-col items-center gap-1 text-[#c8c5cc] hover:text-[#e2e0fc] px-4 py-1.5 rounded-xl">
+            <span className="material-symbols-outlined text-xl">person</span>
+            <span className="text-[10px] font-[Geist] tracking-wide">Profile</span>
+          </Link>
+        </div>
+      </nav>
+    </div>
   );
 }

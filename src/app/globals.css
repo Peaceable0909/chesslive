@@ -1,26 +1,142 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Backgrounds */
+  --color-background: #111125;
+  --color-surface: #111125;
+  --color-surface-dim: #111125;
+  --color-surface-bright: #37374d;
+  --color-surface-container-lowest: #0c0c1f;
+  --color-surface-container-low: #1a1a2e;
+  --color-surface-container: #1e1e32;
+  --color-surface-container-high: #28283d;
+  --color-surface-container-highest: #333348;
+  --color-surface-variant: #333348;
+  --color-primary-container: #0d0d1a;
+
+  /* Text */
+  --color-on-surface: #e2e0fc;
+  --color-on-surface-variant: #c8c5cc;
+  --color-on-background: #e2e0fc;
+
+  /* Primary */
+  --color-primary: #c7c4d7;
+  --color-primary-fixed: #e3e0f4;
+  --color-primary-fixed-dim: #c7c4d7;
+  --color-on-primary: #2f2f3d;
+  --color-on-primary-container: #7b7a8b;
+  --color-on-primary-fixed: #1a1a28;
+  --color-on-primary-fixed-variant: #464555;
+  --color-inverse-primary: #5e5d6d;
+
+  /* Secondary / Purple accent */
+  --color-secondary: #c5c0ff;
+  --color-secondary-container: #3d28bf;
+  --color-secondary-fixed: #e4dfff;
+  --color-secondary-fixed-dim: #c5c0ff;
+  --color-on-secondary: #2600a1;
+  --color-on-secondary-container: #b2acff;
+  --color-on-secondary-fixed: #150067;
+  --color-on-secondary-fixed-variant: #3d28bf;
+
+  /* Tertiary / Gold */
+  --color-tertiary: #fabd00;
+  --color-tertiary-container: #150d00;
+  --color-tertiary-fixed: #ffdf9e;
+  --color-tertiary-fixed-dim: #fabd00;
+  --color-on-tertiary: #3f2e00;
+  --color-on-tertiary-container: #9c7500;
+  --color-on-tertiary-fixed: #261a00;
+  --color-on-tertiary-fixed-variant: #5b4300;
+
+  /* Error */
+  --color-error: #ffb4ab;
+  --color-error-container: #93000a;
+  --color-on-error: #690005;
+  --color-on-error-container: #ffdad6;
+
+  /* Outline */
+  --color-outline: #929096;
+  --color-outline-variant: #47464c;
+  --color-glass-border: rgba(255, 255, 255, 0.06);
+
+  /* Inverse */
+  --color-inverse-surface: #e2e0fc;
+  --color-inverse-on-surface: #2f2e43;
+
+  /* Game-specific */
+  --color-board-dark: #4A3728;
+  --color-board-light: #E8C888;
+  --color-live-red: #FF4B4B;
+  --color-accuracy-emerald: #00E676;
+
+  /* Surface tint */
+  --color-surface-tint: #c7c4d7;
+
+  /* Fonts */
+  --font-display-lg: "Sora", sans-serif;
+  --font-headline-lg: "Sora", sans-serif;
+  --font-headline-lg-mobile: "Sora", sans-serif;
+  --font-headline-md: "Sora", sans-serif;
+  --font-body-lg: "DM Sans", sans-serif;
+  --font-body-md: "DM Sans", sans-serif;
+  --font-label-mono: "Geist", monospace;
+  --font-timer-xl: "Geist", monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  html { color-scheme: dark; }
+  body {
+    background-color: #0D0D1A;
+    color: #e2e0fc;
+    font-family: "DM Sans", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer utilities {
+  .glass-card {
+    background: rgba(26, 26, 46, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(12px);
+  }
+
+  .glow-purple {
+    box-shadow: 0px 0px 20px rgba(124, 111, 255, 0.4);
+  }
+
+  .glow-gold {
+    box-shadow: 0px 0px 20px rgba(250, 189, 0, 0.3);
+  }
+
+  .pulse-dot {
+    animation: pulseDot 2s infinite;
+  }
+
+  @keyframes pulseDot {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 75, 75, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(255, 75, 75, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 75, 75, 0); }
+  }
+
+  .ticker-wrap { width: 100%; overflow: hidden; }
+  .ticker {
+    display: inline-block;
+    white-space: nowrap;
+    padding-right: 100%;
+    animation: ticker 25s linear infinite;
+  }
+  @keyframes ticker {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-100%); }
+  }
+
+  .glow-pulse-anim {
+    animation: glowPulse 2s infinite alternate;
+  }
+  @keyframes glowPulse {
+    0% { box-shadow: 0 0 10px rgba(124, 111, 255, 0.2), 0 0 20px rgba(124, 111, 255, 0.1); }
+    100% { box-shadow: 0 0 25px rgba(124, 111, 255, 0.7), 0 0 50px rgba(124, 111, 255, 0.4); }
+  }
 }
