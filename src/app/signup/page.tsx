@@ -31,14 +31,22 @@ export default function SignupPage() {
 
     if (existing) { setError("Username already taken"); setLoading(false); return; }
 
-    const { error: signupError } = await supabase.auth.signUp({
+    const { data: signupData, error: signupError } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { username } },
     });
 
     if (signupError) { setError(signupError.message); setLoading(false); return; }
-    router.push("/welcome");
+
+    // If session exists, email confirmation is off — go straight to welcome
+    if (signupData.session) {
+      router.push("/welcome");
+      return;
+    }
+
+    // Email confirmation is on — tell the user to check their inbox
+    setError("✉️ Check your email and click the confirmation link, then come back to sign in.");
   }
 
   return (
@@ -88,7 +96,7 @@ export default function SignupPage() {
           </div>
 
           {error && (
-            <div className="px-3 py-2 bg-red-900/30 border border-red-800 rounded-lg text-red-300 text-sm">{error}</div>
+            <div className={`px-3 py-2 rounded-lg text-sm border ${error.startsWith("✉️") ? "bg-indigo-900/30 border-indigo-700 text-indigo-300" : "bg-red-900/30 border-red-800 text-red-300"}`}>{error}</div>
           )}
 
           <button
