@@ -7,9 +7,9 @@ import { Chessboard } from "react-chessboard";
 export default function Home() {
   const [game, setGame] = useState(new Chess());
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
-  const [legalSquares, setLegalSquares] = useState<Record<string, object>>({});
+  const [legalSquares, setLegalSquares] = useState<Record<string, React.CSSProperties>>({});
 
-  function makeMove(sourceSquare: string, targetSquare: string) {
+  function makeMove(sourceSquare: string, targetSquare: string): boolean {
     const gameCopy = new Chess(game.fen());
     const move = gameCopy.move({ from: sourceSquare, to: targetSquare, promotion: "q" });
     if (!move) return false;
@@ -19,15 +19,19 @@ export default function Home() {
     return true;
   }
 
-  const onSquareClick = useCallback((square: string) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const onSquareClick = useCallback(({ square }: any) => {
     if (selectedSquare) {
       const moved = makeMove(selectedSquare, square);
       if (!moved) {
-        const moves = game.moves({ square: square as any, verbose: true });
+        const moves = game.moves({ square: square as Parameters<typeof game.moves>[0] extends { square?: infer S } ? S : never, verbose: true });
         if (moves.length > 0) {
           setSelectedSquare(square);
-          const highlights: Record<string, object> = {};
-          moves.forEach((m) => { highlights[m.to] = { background: "rgba(99,102,241,0.4)", borderRadius: "50%" }; });
+          const highlights: Record<string, React.CSSProperties> = {};
+          highlights[square] = { background: "rgba(99,102,241,0.2)" };
+          moves.forEach((m) => {
+            highlights[(m as { to: string }).to] = { background: "rgba(99,102,241,0.4)", borderRadius: "50%" };
+          });
           setLegalSquares(highlights);
         } else {
           setSelectedSquare(null);
@@ -35,12 +39,14 @@ export default function Home() {
         }
       }
     } else {
-      const moves = game.moves({ square: square as any, verbose: true });
+      const moves = game.moves({ square: square as Parameters<typeof game.moves>[0] extends { square?: infer S } ? S : never, verbose: true });
       if (moves.length > 0) {
         setSelectedSquare(square);
-        const highlights: Record<string, object> = {};
+        const highlights: Record<string, React.CSSProperties> = {};
         highlights[square] = { background: "rgba(99,102,241,0.2)" };
-        moves.forEach((m) => { highlights[m.to] = { background: "rgba(99,102,241,0.4)", borderRadius: "50%" }; });
+        moves.forEach((m) => {
+          highlights[(m as { to: string }).to] = { background: "rgba(99,102,241,0.4)", borderRadius: "50%" };
+        });
         setLegalSquares(highlights);
       }
     }
@@ -69,13 +75,15 @@ export default function Home() {
 
       <div className="w-full max-w-[500px]">
         <Chessboard
-          position={game.fen()}
-          onPieceDrop={makeMove}
-          onSquareClick={onSquareClick}
-          customSquareStyles={legalSquares}
-          customBoardStyle={{ borderRadius: "8px", boxShadow: "0 4px 32px rgba(0,0,0,0.5)" }}
-          customDarkSquareStyle={{ backgroundColor: "#4a3728" }}
-          customLightSquareStyle={{ backgroundColor: "#e8c888" }}
+          options={{
+            position: game.fen(),
+            onPieceDrop: ({ sourceSquare, targetSquare }) => makeMove(sourceSquare, targetSquare ?? ""),
+            onSquareClick,
+            squareStyles: legalSquares,
+            boardStyle: { borderRadius: "8px", boxShadow: "0 4px 32px rgba(0,0,0,0.5)" },
+            darkSquareStyle: { backgroundColor: "#4a3728" },
+            lightSquareStyle: { backgroundColor: "#e8c888" },
+          }}
         />
       </div>
 
