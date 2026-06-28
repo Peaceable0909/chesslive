@@ -54,7 +54,8 @@ export default function ProfilePage() {
         .select("*")
         .eq("id", data.user.id)
         .single()
-        .then(({ data: p }) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .then(({ data: p }: { data: any }) => {
           setProfile(p);
           setLoading(false);
         });

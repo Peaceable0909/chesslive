@@ -17,8 +17,9 @@ export default function WelcomePage() {
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => {
       if (!data.user) { router.push("/login"); return; }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       supabase.from("chesslive_profiles").select("username").eq("id", data.user.id).single()
-        .then(({ data: profile }) => {
+        .then(({ data: profile }: { data: any }) => {
           if (profile) setUsername(profile.username);
         });
     });
