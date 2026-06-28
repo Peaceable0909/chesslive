@@ -17,8 +17,6 @@ const PIECE_VALUES: Record<string, number> = {
   p: 1, n: 3, b: 3, r: 5, q: 9, k: 0,
 };
 
-// ─── Captured pieces helpers ──────────────────────────────────────────────────
-
 function getCapturedPieces(game: Chess) {
   const initW: Record<string, number> = { P: 8, N: 2, B: 2, R: 2, Q: 1 };
   const initB: Record<string, number> = { p: 8, n: 2, b: 2, r: 2, q: 1 };
@@ -53,52 +51,16 @@ function getMaterialAdvantage(capturedByWhite: string[], capturedByBlack: string
 function CapturedPieces({ pieces, advantage }: { pieces: string[]; advantage: number }) {
   const sorted = [...pieces].sort((a, b) => (PIECE_VALUES[b[1].toLowerCase()] || 0) - (PIECE_VALUES[a[1].toLowerCase()] || 0));
   return (
-    <div className="flex items-center gap-0.5 h-6 min-w-[80px]">
+    <div className="flex items-center gap-0.5 min-h-[24px]">
       {sorted.map((p, i) => (
-        <span key={i} className="text-base leading-none opacity-80">{PIECE_UNICODE[p]}</span>
+        <span key={i} className="text-base leading-none">{PIECE_UNICODE[p]}</span>
       ))}
-      {advantage > 0 && <span className="text-xs text-[#c8c5cc] ml-1.5 font-[Geist]">+{advantage}</span>}
+      {advantage > 0 && <span className="text-xs text-[#c8c5cc] ml-1.5">+{advantage}</span>}
     </div>
   );
 }
 
 type PromotionInfo = { from: Square; to: Square; color: "w" | "b" } | null;
-
-// ─── Nav bar ─────────────────────────────────────────────────────────────────
-
-function NavBar({ username }: { username?: string }) {
-  return (
-    <header className="fixed top-0 w-full z-50 bg-[#111125]/80 backdrop-blur-xl border-b border-white/[0.06] shadow-[0_0_20px_rgba(199,196,215,0.05)]">
-      <div className="flex justify-between items-center px-5 md:px-10 h-16 max-w-[1440px] mx-auto">
-        {/* Logo */}
-        <Link href="/" className="font-[Sora] text-lg font-bold tracking-tighter text-[#c7c4d7]">
-          CHESSLIVE
-        </Link>
-        {/* Nav links desktop */}
-        <nav className="hidden md:flex gap-8 items-center">
-          <Link href="/" className="text-sm text-[#c7c4d7] font-medium border-b border-[#c7c4d7] pb-0.5">Board</Link>
-          <Link href="#" className="text-sm text-[#c8c5cc] hover:text-[#e2e0fc] transition-colors">Live</Link>
-          <Link href="#" className="text-sm text-[#c8c5cc] hover:text-[#e2e0fc] transition-colors">Leaderboard</Link>
-        </nav>
-        {/* Auth */}
-        <div className="flex items-center gap-2">
-          {username ? (
-            <Link href="/profile" className="px-4 py-1.5 bg-[#1e1e32] hover:bg-[#28283d] text-[#e2e0fc] text-sm rounded-lg transition-colors border border-white/[0.06]">
-              {username} →
-            </Link>
-          ) : (
-            <>
-              <Link href="/login" className="px-4 py-1.5 text-[#c8c5cc] hover:text-[#e2e0fc] text-sm transition-colors">Sign in</Link>
-              <Link href="/signup" className="px-4 py-1.5 bg-[#3d28bf] hover:bg-[#4a35d0] text-white text-sm rounded-lg font-medium transition-colors shadow-[0_0_12px_rgba(61,40,191,0.4)]">
-                Get 500 pts →
-              </Link>
-            </>
-          )}
-        </div>
-      </div>
-    </header>
-  );
-}
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
@@ -163,8 +125,8 @@ export default function Home() {
           const newMoves = game.moves({ square: sq, verbose: true });
           if (newMoves.length > 0) {
             setSelectedSquare(sq);
-            const h: Record<string, React.CSSProperties> = { [sq]: { background: "rgba(61,40,191,0.3)" } };
-            newMoves.forEach((m) => { h[(m as { to: string }).to] = { background: "rgba(61,40,191,0.4)", borderRadius: "50%" }; });
+            const h: Record<string, React.CSSProperties> = { [sq]: { background: "rgba(61,40,191,0.35)" } };
+            newMoves.forEach((m) => { h[(m as { to: string }).to] = { background: "rgba(61,40,191,0.45)", borderRadius: "50%" }; });
             setLegalSquares(h);
           } else {
             setSelectedSquare(null);
@@ -176,8 +138,8 @@ export default function Home() {
       const moves = game.moves({ square: sq, verbose: true });
       if (moves.length > 0 && game.get(sq)?.color === game.turn()) {
         setSelectedSquare(sq);
-        const h: Record<string, React.CSSProperties> = { [sq]: { background: "rgba(61,40,191,0.3)" } };
-        moves.forEach((m) => { h[(m as { to: string }).to] = { background: "rgba(61,40,191,0.4)", borderRadius: "50%" }; });
+        const h: Record<string, React.CSSProperties> = { [sq]: { background: "rgba(61,40,191,0.35)" } };
+        moves.forEach((m) => { h[(m as { to: string }).to] = { background: "rgba(61,40,191,0.45)", borderRadius: "50%" }; });
         setLegalSquares(h);
       }
     }
@@ -198,7 +160,7 @@ export default function Home() {
   const squareStyles: Record<string, React.CSSProperties> = { ...legalSquares };
   if (lastMove) {
     squareStyles[lastMove.from] = { ...(squareStyles[lastMove.from] || {}), background: "rgba(250,189,0,0.2)" };
-    squareStyles[lastMove.to] = { ...(squareStyles[lastMove.to] || {}), background: "rgba(250,189,0,0.35)" };
+    squareStyles[lastMove.to] = { ...(squareStyles[lastMove.to] || {}), background: "rgba(250,189,0,0.38)" };
   }
   if (game.isCheck()) {
     for (const row of game.board()) {
@@ -228,39 +190,107 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0D0D1A]">
-      <NavBar username={authUser?.username} />
+    <div className="min-h-screen" style={{ background: "#0D0D1A" }}>
 
-      {/* Live ticker */}
-      <div className="w-full bg-[#333348] border-b border-white/[0.06] mt-16 py-2 overflow-hidden flex items-center gap-2">
-        <div className="w-2 h-2 rounded-full bg-[#FF4B4B] pulse-dot ml-4 shrink-0" />
-        <div className="ticker-wrap flex-1">
-          <div className="ticker font-[Geist] text-xs tracking-wider text-[#c8c5cc] uppercase">
-            42 games live · 18,406 voting · 1,247 moves/min · Biggest pool: 25,000 pts · Grandmaster Tournament in 14:02
-          </div>
+      {/* ── Fixed nav ── */}
+      <header style={{
+        position: "fixed", top: 0, left: 0, right: 0, zIndex: 50,
+        background: "rgba(17,17,37,0.9)", backdropFilter: "blur(16px)",
+        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        height: 64,
+        display: "flex", alignItems: "center",
+        justifyContent: "space-between",
+        padding: "0 24px",
+      }}>
+        <Link href="/" style={{ fontFamily: "Sora, sans-serif", fontSize: 18, fontWeight: 700, letterSpacing: "-0.02em", color: "#c7c4d7", textDecoration: "none" }}>
+          CHESSLIVE
+        </Link>
+
+        <nav style={{ display: "flex", gap: 32, alignItems: "center" }}>
+          <Link href="/" style={{ fontFamily: "DM Sans, sans-serif", fontSize: 14, color: "#c7c4d7", textDecoration: "none", fontWeight: 600, borderBottom: "2px solid #c7c4d7", paddingBottom: 2 }}>Board</Link>
+          <Link href="#" style={{ fontFamily: "DM Sans, sans-serif", fontSize: 14, color: "#929096", textDecoration: "none" }}>Live</Link>
+          <Link href="#" style={{ fontFamily: "DM Sans, sans-serif", fontSize: 14, color: "#929096", textDecoration: "none" }}>Leaderboard</Link>
+        </nav>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {authUser ? (
+            <Link href="/profile" style={{
+              padding: "6px 14px", background: "#1e1e32", border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 10, color: "#e2e0fc", fontSize: 13, textDecoration: "none",
+              fontFamily: "DM Sans, sans-serif",
+            }}>{authUser.username} →</Link>
+          ) : (
+            <>
+              <Link href="/login" style={{ padding: "6px 12px", color: "#929096", fontSize: 13, textDecoration: "none", fontFamily: "DM Sans, sans-serif" }}>Sign in</Link>
+              <Link href="/signup" style={{
+                padding: "6px 14px", background: "#3d28bf", borderRadius: 10,
+                color: "#fff", fontSize: 13, fontWeight: 600, textDecoration: "none",
+                fontFamily: "DM Sans, sans-serif",
+                boxShadow: "0 0 12px rgba(61,40,191,0.4)",
+              }}>Get 500 pts →</Link>
+            </>
+          )}
+        </div>
+      </header>
+
+      {/* ── Live ticker ── */}
+      <div style={{
+        marginTop: 64,
+        background: "#1e1e32",
+        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        padding: "8px 0",
+        overflow: "hidden",
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+      }}>
+        <div style={{
+          width: 8, height: 8, borderRadius: "50%", background: "#FF4B4B",
+          marginLeft: 16, flexShrink: 0,
+          animation: "pulseDot 2s infinite",
+        }} />
+        <div style={{ flex: 1, overflow: "hidden" }}>
+          <span style={{
+            display: "inline-block",
+            whiteSpace: "nowrap",
+            fontFamily: "Geist, monospace",
+            fontSize: 11,
+            letterSpacing: "0.08em",
+            color: "#c8c5cc",
+            textTransform: "uppercase",
+            animation: "tickerScroll 30s linear infinite",
+          }}>
+            42 games live &nbsp;·&nbsp; 18,406 voting &nbsp;·&nbsp; 1,247 moves/min &nbsp;·&nbsp; Biggest pool: 25,000 pts &nbsp;·&nbsp; Grandmaster Tournament in 14:02 &nbsp;·&nbsp; New Challenge from Magnus &nbsp;&nbsp;&nbsp;&nbsp; 42 games live &nbsp;·&nbsp; 18,406 voting &nbsp;·&nbsp; 1,247 moves/min
+          </span>
         </div>
       </div>
 
-      {/* Board section */}
-      <main className="max-w-[900px] mx-auto px-4 py-8">
+      {/* ── Board area ── */}
+      <main style={{ maxWidth: 920, margin: "0 auto", padding: "32px 16px 80px" }}>
+        <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
 
-        {/* Player + board layout */}
-        <div className="flex gap-5 items-start">
+          {/* Board column */}
+          <div style={{ flex: 1, minWidth: 0 }}>
 
-          {/* Left: board + players */}
-          <div className="flex flex-col flex-1 min-w-0">
-
-            {/* Black player row */}
-            <div className="flex items-center justify-between mb-2 px-1">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-[#1e1e32] border border-white/[0.06] flex items-center justify-center text-base">♚</div>
-                <span className="text-sm text-[#e2e0fc] font-medium font-[DM_Sans]">Black</span>
+            {/* Black player */}
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              marginBottom: 8, padding: "0 4px",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{
+                  width: 32, height: 32, borderRadius: "50%",
+                  background: "#333348", border: "1px solid rgba(255,255,255,0.1)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 16, color: "#e2e0fc",
+                }}>♚</div>
+                <span style={{ fontFamily: "DM Sans, sans-serif", fontSize: 14, fontWeight: 600, color: "#e2e0fc" }}>Black</span>
               </div>
               <CapturedPieces pieces={capturedByBlack} advantage={advantage < 0 ? Math.abs(advantage) : 0} />
             </div>
 
-            {/* Board */}
-            <div className="w-full rounded-xl overflow-hidden shadow-[0_0_40px_rgba(61,40,191,0.15)]">
+            {/* Chess board */}
+            <div style={{ borderRadius: 12, overflow: "hidden", boxShadow: "0 0 40px rgba(61,40,191,0.12), 0 8px 32px rgba(0,0,0,0.5)" }}>
               <Chessboard
                 options={{
                   position: game.fen(),
@@ -271,7 +301,7 @@ export default function Home() {
                   },
                   onSquareClick,
                   squareStyles,
-                  boardStyle: { borderRadius: "12px", boxShadow: "none" },
+                  boardStyle: { borderRadius: 0, boxShadow: "none" },
                   darkSquareStyle: { backgroundColor: "#4a3728" },
                   lightSquareStyle: { backgroundColor: "#e8c888" },
                   allowDragging: !isGameOver,
@@ -279,69 +309,122 @@ export default function Home() {
               />
             </div>
 
-            {/* White player row */}
-            <div className="flex items-center justify-between mt-2 px-1">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-[#e8c888] flex items-center justify-center text-base text-[#1a1a28]">♔</div>
-                <span className="text-sm text-[#e2e0fc] font-medium font-[DM_Sans]">White</span>
+            {/* White player */}
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              marginTop: 8, padding: "0 4px",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{
+                  width: 32, height: 32, borderRadius: "50%",
+                  background: "#e8e8e8", border: "1px solid rgba(255,255,255,0.2)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 16, color: "#1a1a28",
+                }}>♔</div>
+                <span style={{ fontFamily: "DM Sans, sans-serif", fontSize: 14, fontWeight: 600, color: "#e2e0fc" }}>White</span>
               </div>
               <CapturedPieces pieces={capturedByWhite} advantage={advantage > 0 ? advantage : 0} />
             </div>
 
             {/* Status + controls */}
-            <div className="mt-3 flex items-center gap-2">
-              <div className={`flex-1 px-4 py-2.5 rounded-xl text-sm text-center font-medium font-[Sora] transition-colors ${
-                isGameOver ? "bg-[#150d00] border border-[#fabd00]/30 text-[#fabd00]" :
-                game.isCheck() ? "bg-[#93000a]/40 border border-[#FF4B4B]/30 text-[#FF4B4B]" :
-                "bg-[#1e1e32] border border-white/[0.06] text-[#c8c5cc]"
-              }`}>{status}</div>
+            <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+              <div style={{
+                flex: 1, padding: "10px 16px",
+                borderRadius: 12, textAlign: "center",
+                fontFamily: "Sora, sans-serif", fontSize: 13, fontWeight: 600,
+                ...(isGameOver
+                  ? { background: "rgba(21,13,0,0.9)", border: "1px solid rgba(250,189,0,0.3)", color: "#fabd00" }
+                  : game.isCheck()
+                  ? { background: "rgba(147,0,10,0.4)", border: "1px solid rgba(255,75,75,0.3)", color: "#FF4B4B" }
+                  : { background: "#1e1e32", border: "1px solid rgba(255,255,255,0.06)", color: "#c8c5cc" }),
+              }}>{status}</div>
+
               <button
                 onClick={() => setBoardFlipped(f => !f)}
-                className="px-3 py-2.5 bg-[#1e1e32] hover:bg-[#28283d] border border-white/[0.06] text-[#c8c5cc] text-sm rounded-xl transition-colors"
                 title="Flip board"
-              >⇅</button>
+                style={{
+                  padding: "10px 14px",
+                  background: "#1e1e32", border: "1px solid rgba(255,255,255,0.06)",
+                  borderRadius: 12, color: "#c8c5cc", fontSize: 16, cursor: "pointer",
+                }}>⇅</button>
+
               <button
                 onClick={resetGame}
-                className="px-4 py-2.5 bg-[#3d28bf] hover:bg-[#4a35d0] text-white text-sm rounded-xl font-medium transition-colors shadow-[0_0_12px_rgba(61,40,191,0.3)]"
-              >New game</button>
+                style={{
+                  padding: "10px 18px",
+                  background: "#3d28bf", border: "none",
+                  borderRadius: 12, color: "#fff",
+                  fontFamily: "Sora, sans-serif", fontSize: 13, fontWeight: 600,
+                  cursor: "pointer",
+                  boxShadow: "0 0 12px rgba(61,40,191,0.35)",
+                }}>New game</button>
             </div>
           </div>
 
-          {/* Right: move history */}
-          <div className="w-44 bg-[#1e1e32] rounded-xl border border-white/[0.06] flex flex-col overflow-hidden shadow-[0_0_20px_rgba(0,0,0,0.3)]">
-            <div className="px-3 py-2.5 text-xs font-medium text-[#c8c5cc] border-b border-white/[0.06] uppercase tracking-wider font-[Geist]">
-              Moves
-            </div>
-            <div ref={historyRef} className="flex-1 overflow-y-auto max-h-[420px] p-1">
-              {pairMoves(moveHistory).length === 0 && (
-                <p className="text-[#47464c] text-xs text-center py-6 font-[DM_Sans]">No moves yet</p>
+          {/* Move history */}
+          <div style={{
+            width: 168, flexShrink: 0,
+            background: "#1e1e32", borderRadius: 12,
+            border: "1px solid rgba(255,255,255,0.06)",
+            display: "flex", flexDirection: "column",
+            overflow: "hidden",
+            boxShadow: "0 4px 24px rgba(0,0,0,0.3)",
+          }}>
+            <div style={{
+              padding: "10px 14px",
+              borderBottom: "1px solid rgba(255,255,255,0.06)",
+              fontFamily: "Geist, monospace", fontSize: 11,
+              color: "#929096", letterSpacing: "0.08em", textTransform: "uppercase",
+            }}>Moves</div>
+
+            <div ref={historyRef} style={{ flex: 1, overflowY: "auto", maxHeight: 480, padding: 4 }}>
+              {pairMoves(moveHistory).length === 0 ? (
+                <p style={{ fontFamily: "DM Sans, sans-serif", fontSize: 12, color: "#47464c", textAlign: "center", padding: "24px 0" }}>
+                  No moves yet
+                </p>
+              ) : (
+                pairMoves(moveHistory).map(([white, black], i) => (
+                  <div key={i} style={{ display: "flex", fontSize: 12, marginBottom: 2 }}>
+                    <span style={{ width: 28, color: "#47464c", padding: "3px 4px", fontFamily: "Geist, monospace" }}>{i + 1}.</span>
+                    <span style={{ flex: 1, padding: "3px 4px", color: "#e2e0fc", fontFamily: "DM Sans, sans-serif", borderRadius: 4, cursor: "pointer" }}>{white}</span>
+                    {black && <span style={{ flex: 1, padding: "3px 4px", color: "#e2e0fc", fontFamily: "DM Sans, sans-serif", borderRadius: 4, cursor: "pointer" }}>{black}</span>}
+                  </div>
+                ))
               )}
-              {pairMoves(moveHistory).map(([white, black], i) => (
-                <div key={i} className="flex text-xs mb-0.5 rounded">
-                  <span className="w-7 text-[#47464c] px-1 py-1 shrink-0 font-[Geist]">{i + 1}.</span>
-                  <span className="flex-1 px-1 py-1 text-[#e2e0fc] hover:bg-[#28283d] rounded cursor-pointer font-[DM_Sans]">{white}</span>
-                  {black && <span className="flex-1 px-1 py-1 text-[#e2e0fc] hover:bg-[#28283d] rounded cursor-pointer font-[DM_Sans]">{black}</span>}
-                </div>
-              ))}
             </div>
-            <div className="px-3 py-2 border-t border-white/[0.06] text-xs text-[#47464c] font-[Geist]">
-              {moveHistory.length} move{moveHistory.length !== 1 ? "s" : ""}
-            </div>
+
+            <div style={{
+              padding: "8px 14px",
+              borderTop: "1px solid rgba(255,255,255,0.06)",
+              fontFamily: "Geist, monospace", fontSize: 11, color: "#47464c",
+            }}>{moveHistory.length} move{moveHistory.length !== 1 ? "s" : ""}</div>
           </div>
         </div>
       </main>
 
-      {/* Promotion dialog */}
+      {/* ── Promotion dialog ── */}
       {promotion && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-[#1e1e32] border border-white/[0.06] rounded-2xl p-6 text-center shadow-2xl">
-            <p className="text-[#e2e0fc] text-sm font-medium mb-4 font-[Sora]">Choose promotion piece</p>
-            <div className="flex gap-3">
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", backdropFilter: "blur(4px)",
+          display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100,
+        }}>
+          <div style={{
+            background: "#1e1e32", border: "1px solid rgba(255,255,255,0.08)",
+            borderRadius: 20, padding: 28, textAlign: "center",
+          }}>
+            <p style={{ fontFamily: "Sora, sans-serif", fontSize: 14, fontWeight: 600, color: "#e2e0fc", marginBottom: 16 }}>
+              Choose promotion piece
+            </p>
+            <div style={{ display: "flex", gap: 12 }}>
               {(["q", "r", "b", "n"] as const).map((p) => (
                 <button
                   key={p}
                   onClick={() => { applyMove(promotion.from, promotion.to, p); setPromotion(null); }}
-                  className="w-14 h-14 bg-[#28283d] hover:bg-[#3d28bf] border border-white/[0.06] hover:border-[#3d28bf] rounded-xl text-3xl flex items-center justify-center transition-all"
+                  style={{
+                    width: 56, height: 56, background: "#28283d",
+                    border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12,
+                    fontSize: 28, cursor: "pointer", color: "#e2e0fc",
+                  }}
                 >
                   {PIECE_UNICODE[`${promotion.color}${p.toUpperCase()}`]}
                 </button>
@@ -351,27 +434,45 @@ export default function Home() {
         </div>
       )}
 
-      {/* Bottom nav mobile */}
-      <nav className="fixed bottom-0 w-full z-50 rounded-t-2xl bg-[#1e1e32]/95 backdrop-blur-lg border-t border-white/[0.06] shadow-[0_-4px_20px_rgba(0,0,0,0.4)] md:hidden">
-        <div className="flex justify-around items-center h-20 px-2">
-          <Link href="/" className="flex flex-col items-center gap-1 text-[#c5c0ff] bg-[#3d28bf]/20 rounded-xl px-4 py-1.5">
-            <span className="material-symbols-outlined text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>home</span>
-            <span className="text-[10px] font-[Geist] tracking-wide">Home</span>
+      {/* ── Bottom nav (mobile) ── */}
+      <nav style={{
+        position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 50,
+        background: "rgba(30,30,50,0.97)", backdropFilter: "blur(12px)",
+        borderTop: "1px solid rgba(255,255,255,0.06)",
+        display: "flex", justifyContent: "space-around", alignItems: "center",
+        height: 72, padding: "0 8px",
+      }} className="md:hidden">
+        {[
+          { icon: "home", label: "Home", href: "/", active: true },
+          { icon: "sensors", label: "Live", href: "#", active: false },
+          { icon: "grid_view", label: "Play", href: "#", active: false },
+          { icon: "person", label: "Profile", href: "/profile", active: false },
+        ].map(({ icon, label, href, active }) => (
+          <Link key={label} href={href} style={{
+            display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
+            textDecoration: "none",
+            color: active ? "#c5c0ff" : "#929096",
+            background: active ? "rgba(61,40,191,0.2)" : "transparent",
+            borderRadius: 12, padding: "6px 16px",
+          }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 22, fontVariationSettings: active ? "'FILL' 1" : "'FILL' 0" }}>{icon}</span>
+            <span style={{ fontSize: 10, fontFamily: "Geist, monospace", letterSpacing: "0.06em" }}>{label}</span>
           </Link>
-          <Link href="#" className="flex flex-col items-center gap-1 text-[#c8c5cc] hover:text-[#e2e0fc] px-4 py-1.5 rounded-xl">
-            <span className="material-symbols-outlined text-xl">sensors</span>
-            <span className="text-[10px] font-[Geist] tracking-wide">Live</span>
-          </Link>
-          <Link href="#" className="flex flex-col items-center gap-1 text-[#c8c5cc] hover:text-[#e2e0fc] px-4 py-1.5 rounded-xl">
-            <span className="material-symbols-outlined text-xl">grid_view</span>
-            <span className="text-[10px] font-[Geist] tracking-wide">Play</span>
-          </Link>
-          <Link href="/profile" className="flex flex-col items-center gap-1 text-[#c8c5cc] hover:text-[#e2e0fc] px-4 py-1.5 rounded-xl">
-            <span className="material-symbols-outlined text-xl">person</span>
-            <span className="text-[10px] font-[Geist] tracking-wide">Profile</span>
-          </Link>
-        </div>
+        ))}
       </nav>
+
+      {/* Inline keyframe animations */}
+      <style>{`
+        @keyframes pulseDot {
+          0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255,75,75,0.7); }
+          70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(255,75,75,0); }
+          100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255,75,75,0); }
+        }
+        @keyframes tickerScroll {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+      `}</style>
     </div>
   );
 }
