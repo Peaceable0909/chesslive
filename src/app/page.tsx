@@ -1,79 +1,100 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
-import { Chess, Square } from "chess.js";
-import { Chessboard } from "react-chessboard";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 
-// ─── Piece data ───────────────────────────────────────────────────────────────
+// ─── Shared style tokens ──────────────────────────────────────────────────────
 
-const PIECE_UNICODE: Record<string, string> = {
-  wP: "♙", wN: "♘", wB: "♗", wR: "♖", wQ: "♕", wK: "♔",
-  bP: "♟", bN: "♞", bB: "♝", bR: "♜", bQ: "♛", bK: "♚",
+const glass: React.CSSProperties = {
+  background: "rgba(26, 26, 46, 0.8)",
+  border: "1px solid rgba(255,255,255,0.06)",
+  backdropFilter: "blur(12px)",
 };
 
-const PIECE_VALUES: Record<string, number> = {
-  p: 1, n: 3, b: 3, r: 5, q: 9, k: 0,
-};
+const sora = "Sora, sans-serif";
+const dmSans = "DM Sans, sans-serif";
+const geist = "Geist, monospace";
 
-function getCapturedPieces(game: Chess) {
-  const initW: Record<string, number> = { P: 8, N: 2, B: 2, R: 2, Q: 1 };
-  const initB: Record<string, number> = { p: 8, n: 2, b: 2, r: 2, q: 1 };
-  const curW: Record<string, number> = {};
-  const curB: Record<string, number> = {};
+// ─── Mini live board (mock preview) ──────────────────────────────────────────
 
-  game.board().flat().forEach((sq) => {
-    if (!sq) return;
-    if (sq.color === "w") curW[sq.type.toUpperCase()] = (curW[sq.type.toUpperCase()] || 0) + 1;
-    else curB[sq.type] = (curB[sq.type] || 0) + 1;
-  });
-
-  const capturedByWhite: string[] = [];
-  const capturedByBlack: string[] = [];
-  Object.entries(initB).forEach(([p, count]) => {
-    const remaining = curB[p] || 0;
-    for (let i = 0; i < count - remaining; i++) capturedByWhite.push(`b${p.toUpperCase()}`);
-  });
-  Object.entries(initW).forEach(([p, count]) => {
-    const remaining = curW[p] || 0;
-    for (let i = 0; i < count - remaining; i++) capturedByBlack.push(`w${p}`);
-  });
-  return { capturedByWhite, capturedByBlack };
-}
-
-function getMaterialAdvantage(capturedByWhite: string[], capturedByBlack: string[]) {
-  const sum = (pieces: string[]) =>
-    pieces.reduce((acc, p) => acc + (PIECE_VALUES[p[1].toLowerCase()] || 0), 0);
-  return sum(capturedByWhite) - sum(capturedByBlack);
-}
-
-function CapturedPieces({ pieces, advantage }: { pieces: string[]; advantage: number }) {
-  const sorted = [...pieces].sort((a, b) => (PIECE_VALUES[b[1].toLowerCase()] || 0) - (PIECE_VALUES[a[1].toLowerCase()] || 0));
+function MiniBoard() {
+  const squares = [];
+  for (let i = 0; i < 64; i++) {
+    const row = Math.floor(i / 8);
+    const col = i % 8;
+    const isDark = (row + col) % 2 !== 0;
+    const isHighlight = i === 35;
+    const isLastMove = i === 27;
+    squares.push(
+      <div key={i} style={{
+        background: isDark ? "#4A3728" : "#E8C888",
+        position: "relative",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        ...(isLastMove ? { background: isDark ? "#6b5a2a" : "#d4b96a" } : {}),
+      }}>
+        {isHighlight && (
+          <>
+            <div style={{
+              position: "absolute", inset: 2,
+              border: "2px solid #7C6FFF", borderRadius: 4,
+              boxShadow: "0 0 12px rgba(124,111,255,0.8)",
+              animation: "pulseSq 1.6s infinite",
+            }} />
+            <span style={{ fontSize: "clamp(14px, 3.2vw, 26px)", zIndex: 1 }}>♞</span>
+          </>
+        )}
+        {i === 4 && <span style={{ fontSize: "clamp(14px, 3.2vw, 26px)", opacity: 0.35 }}>♚</span>}
+        {i === 51 && <span style={{ fontSize: "clamp(14px, 3.2vw, 26px)" }}>♙</span>}
+        {i === 52 && <span style={{ fontSize: "clamp(14px, 3.2vw, 26px)" }}>♙</span>}
+        {i === 60 && <span style={{ fontSize: "clamp(14px, 3.2vw, 26px)" }}>♔</span>}
+      </div>
+    );
+  }
   return (
-    <div className="flex items-center gap-0.5 min-h-[24px]">
-      {sorted.map((p, i) => (
-        <span key={i} className="text-base leading-none">{PIECE_UNICODE[p]}</span>
-      ))}
-      {advantage > 0 && <span className="text-xs text-[#c8c5cc] ml-1.5">+{advantage}</span>}
+    <div style={{
+      display: "grid",
+      gridTemplateColumns: "repeat(8, 1fr)",
+      gridTemplateRows: "repeat(8, 1fr)",
+      aspectRatio: "1 / 1",
+      width: "100%",
+      borderRadius: 10,
+      overflow: "hidden",
+      border: "3px solid #4A3728",
+    }}>
+      {squares}
     </div>
   );
 }
 
-type PromotionInfo = { from: Square; to: Square; color: "w" | "b" } | null;
+// ─── Vote bar ────────────────────────────────────────────────────────────────
 
-// ─── Main component ───────────────────────────────────────────────────────────
+function VoteBar({ move, pct, primary }: { move: string; pct: number; primary?: boolean }) {
+  return (
+    <div style={{
+      position: "relative", height: 46,
+      background: "#1a1a2e", borderRadius: 10,
+      display: "flex", alignItems: "center",
+      padding: "0 16px", overflow: "hidden",
+      border: "1px solid rgba(255,255,255,0.04)",
+    }}>
+      <div style={{
+        position: "absolute", left: 0, top: 0, height: "100%",
+        width: `${pct}%`,
+        background: primary ? "rgba(61,40,191,0.55)" : "#333348",
+        transition: "width 0.5s",
+      }} />
+      <span style={{ position: "relative", zIndex: 1, fontFamily: sora, fontWeight: 700, fontSize: 14, color: "#e2e0fc" }}>{move}</span>
+      <span style={{ position: "relative", zIndex: 1, marginLeft: "auto", fontFamily: geist, fontSize: 13, color: "#c8c5cc" }}>{pct}%</span>
+    </div>
+  );
+}
 
-export default function Home() {
-  const [game, setGame] = useState(new Chess());
-  const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
-  const [legalSquares, setLegalSquares] = useState<Record<string, React.CSSProperties>>({});
-  const [lastMove, setLastMove] = useState<{ from: string; to: string } | null>(null);
-  const [boardFlipped, setBoardFlipped] = useState(false);
-  const [promotion, setPromotion] = useState<PromotionInfo>(null);
-  const [moveHistory, setMoveHistory] = useState<string[]>([]);
-  const historyRef = useRef<HTMLDivElement>(null);
+// ─── Landing page ────────────────────────────────────────────────────────────
+
+export default function LandingPage() {
   const [authUser, setAuthUser] = useState<{ username?: string } | null>(null);
+  const [timer, setTimer] = useState(23);
 
   useEffect(() => {
     const supabase = createClient();
@@ -83,394 +104,377 @@ export default function Home() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .then(({ data: p }: { data: any }) => { if (p) setAuthUser({ username: p.username }); });
     });
+    const t = setInterval(() => setTimer((s) => (s <= 0 ? 30 : s - 1)), 1000);
+    return () => clearInterval(t);
   }, []);
 
-  useEffect(() => {
-    if (historyRef.current) historyRef.current.scrollTop = historyRef.current.scrollHeight;
-  }, [moveHistory]);
-
-  function applyMove(sourceSquare: Square, targetSquare: Square, promotionPiece?: "q" | "r" | "b" | "n"): boolean {
-    const gameCopy = new Chess(game.fen());
-    const move = gameCopy.move({ from: sourceSquare, to: targetSquare, promotion: promotionPiece || "q" });
-    if (!move) return false;
-    setGame(gameCopy);
-    setLastMove({ from: sourceSquare, to: targetSquare });
-    setMoveHistory(gameCopy.history());
-    setSelectedSquare(null);
-    setLegalSquares({});
-    return true;
-  }
-
-  function tryMove(sourceSquare: Square, targetSquare: Square): boolean {
-    const piece = game.get(sourceSquare);
-    const isPromotion = piece?.type === "p" &&
-      ((piece.color === "w" && targetSquare[1] === "8") ||
-       (piece.color === "b" && targetSquare[1] === "1"));
-    if (isPromotion) {
-      setPromotion({ from: sourceSquare, to: targetSquare, color: piece.color });
-      return true;
-    }
-    return applyMove(sourceSquare, targetSquare);
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const onSquareClick = useCallback(({ square }: any) => {
-    const sq = square as Square;
-    if (selectedSquare) {
-      const moved = tryMove(selectedSquare, sq);
-      if (!moved) {
-        const moves = game.moves({ square: selectedSquare, verbose: true });
-        const isLegal = moves.some((m) => (m as { to: string }).to === sq);
-        if (!isLegal) {
-          const newMoves = game.moves({ square: sq, verbose: true });
-          if (newMoves.length > 0) {
-            setSelectedSquare(sq);
-            const h: Record<string, React.CSSProperties> = { [sq]: { background: "rgba(61,40,191,0.35)" } };
-            newMoves.forEach((m) => { h[(m as { to: string }).to] = { background: "rgba(61,40,191,0.45)", borderRadius: "50%" }; });
-            setLegalSquares(h);
-          } else {
-            setSelectedSquare(null);
-            setLegalSquares({});
-          }
-        }
-      }
-    } else {
-      const moves = game.moves({ square: sq, verbose: true });
-      if (moves.length > 0 && game.get(sq)?.color === game.turn()) {
-        setSelectedSquare(sq);
-        const h: Record<string, React.CSSProperties> = { [sq]: { background: "rgba(61,40,191,0.35)" } };
-        moves.forEach((m) => { h[(m as { to: string }).to] = { background: "rgba(61,40,191,0.45)", borderRadius: "50%" }; });
-        setLegalSquares(h);
-      }
-    }
-  }, [selectedSquare, game]);
-
-  function resetGame() {
-    setGame(new Chess());
-    setSelectedSquare(null);
-    setLegalSquares({});
-    setLastMove(null);
-    setMoveHistory([]);
-    setPromotion(null);
-  }
-
-  const { capturedByWhite, capturedByBlack } = getCapturedPieces(game);
-  const advantage = getMaterialAdvantage(capturedByWhite, capturedByBlack);
-
-  const squareStyles: Record<string, React.CSSProperties> = { ...legalSquares };
-  if (lastMove) {
-    squareStyles[lastMove.from] = { ...(squareStyles[lastMove.from] || {}), background: "rgba(250,189,0,0.2)" };
-    squareStyles[lastMove.to] = { ...(squareStyles[lastMove.to] || {}), background: "rgba(250,189,0,0.38)" };
-  }
-  if (game.isCheck()) {
-    for (const row of game.board()) {
-      for (const sq of row) {
-        if (sq && sq.type === "k" && sq.color === game.turn()) {
-          squareStyles[sq.square] = { background: "rgba(255,75,75,0.55)" };
-        }
-      }
-    }
-  }
-
-  const status = game.isCheckmate()
-    ? `Checkmate — ${game.turn() === "w" ? "Black" : "White"} wins!`
-    : game.isStalemate() ? "Stalemate — Draw"
-    : game.isInsufficientMaterial() ? "Draw — Insufficient material"
-    : game.isThreefoldRepetition() ? "Draw — Threefold repetition"
-    : game.isDraw() ? "Draw"
-    : game.isCheck() ? `${game.turn() === "w" ? "White" : "Black"} is in check`
-    : `${game.turn() === "w" ? "White" : "Black"} to move`;
-
-  const isGameOver = game.isGameOver();
-
-  const pairMoves = (history: string[]) => {
-    const pairs: [string, string | null][] = [];
-    for (let i = 0; i < history.length; i += 2) pairs.push([history[i], history[i + 1] ?? null]);
-    return pairs;
-  };
-
   return (
-    <div className="min-h-screen" style={{ background: "#0D0D1A" }}>
+    <div style={{ background: "#0D0D1A", minHeight: "100vh", color: "#e2e0fc", overflowX: "hidden" }}>
 
-      {/* ── Fixed nav ── */}
+      {/* ═══ Top nav ═══ */}
       <header style={{
         position: "fixed", top: 0, left: 0, right: 0, zIndex: 50,
-        background: "rgba(17,17,37,0.9)", backdropFilter: "blur(16px)",
+        background: "rgba(17,17,37,0.85)", backdropFilter: "blur(16px)",
         borderBottom: "1px solid rgba(255,255,255,0.06)",
-        height: 64,
-        display: "flex", alignItems: "center",
-        justifyContent: "space-between",
-        padding: "0 24px",
       }}>
-        <Link href="/" style={{ fontFamily: "Sora, sans-serif", fontSize: 18, fontWeight: 700, letterSpacing: "-0.02em", color: "#c7c4d7", textDecoration: "none" }}>
-          CHESSLIVE
-        </Link>
+        <div style={{
+          maxWidth: 1280, margin: "0 auto", height: 64,
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "0 24px",
+        }}>
+          <span style={{ fontFamily: sora, fontSize: 19, fontWeight: 800, letterSpacing: "-0.02em", color: "#e2e0fc" }}>ChessLive</span>
 
-        <nav style={{ display: "flex", gap: 32, alignItems: "center" }}>
-          <Link href="/" style={{ fontFamily: "DM Sans, sans-serif", fontSize: 14, color: "#c7c4d7", textDecoration: "none", fontWeight: 600, borderBottom: "2px solid #c7c4d7", paddingBottom: 2 }}>Board</Link>
-          <Link href="#" style={{ fontFamily: "DM Sans, sans-serif", fontSize: 14, color: "#929096", textDecoration: "none" }}>Live</Link>
-          <Link href="#" style={{ fontFamily: "DM Sans, sans-serif", fontSize: 14, color: "#929096", textDecoration: "none" }}>Leaderboard</Link>
-        </nav>
+          <nav className="hidden md:flex" style={{ gap: 32, alignItems: "center" }}>
+            <Link href="/" style={{ fontFamily: dmSans, fontSize: 14, color: "#e2e0fc", fontWeight: 700, textDecoration: "none", borderBottom: "2px solid #c7c4d7", paddingBottom: 3 }}>Home</Link>
+            <Link href="/play" style={{ fontFamily: dmSans, fontSize: 14, color: "#929096", textDecoration: "none" }}>Play</Link>
+            <Link href="#" style={{ fontFamily: dmSans, fontSize: 14, color: "#929096", textDecoration: "none" }}>Live</Link>
+            <Link href="#" style={{ fontFamily: dmSans, fontSize: 14, color: "#929096", textDecoration: "none" }}>Leaderboard</Link>
+          </nav>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {authUser ? (
-            <Link href="/profile" style={{
-              padding: "6px 14px", background: "#1e1e32", border: "1px solid rgba(255,255,255,0.08)",
-              borderRadius: 10, color: "#e2e0fc", fontSize: 13, textDecoration: "none",
-              fontFamily: "DM Sans, sans-serif",
-            }}>{authUser.username} →</Link>
-          ) : (
-            <>
-              <Link href="/login" style={{ padding: "6px 12px", color: "#929096", fontSize: 13, textDecoration: "none", fontFamily: "DM Sans, sans-serif" }}>Sign in</Link>
-              <Link href="/signup" style={{
-                padding: "6px 14px", background: "#3d28bf", borderRadius: 10,
-                color: "#fff", fontSize: 13, fontWeight: 600, textDecoration: "none",
-                fontFamily: "DM Sans, sans-serif",
-                boxShadow: "0 0 12px rgba(61,40,191,0.4)",
-              }}>Get 500 pts →</Link>
-            </>
-          )}
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {authUser ? (
+              <Link href="/profile" style={{
+                background: "#3d28bf", color: "#fff", padding: "8px 20px", borderRadius: 10,
+                fontFamily: dmSans, fontWeight: 700, fontSize: 14, textDecoration: "none",
+              }}>{authUser.username}</Link>
+            ) : (
+              <>
+                <Link href="/login" style={{ fontFamily: dmSans, fontSize: 14, color: "#929096", textDecoration: "none" }}>Sign In</Link>
+                <Link href="/signup" style={{
+                  background: "#3d28bf", color: "#fff", padding: "8px 20px", borderRadius: 10,
+                  fontFamily: dmSans, fontWeight: 700, fontSize: 14, textDecoration: "none",
+                  boxShadow: "0 0 16px rgba(61,40,191,0.4)",
+                }}>Join Now</Link>
+              </>
+            )}
+          </div>
         </div>
       </header>
 
-      {/* ── Live ticker ── */}
+      {/* ═══ Live pulse ticker ═══ */}
       <div style={{
-        marginTop: 64,
-        background: "#1e1e32",
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
-        padding: "8px 0",
-        overflow: "hidden",
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
+        marginTop: 64, height: 40,
+        background: "#0d0d1a", borderBottom: "1px solid rgba(255,255,255,0.06)",
+        display: "flex", alignItems: "center", overflow: "hidden",
       }}>
-        <div style={{
-          width: 8, height: 8, borderRadius: "50%", background: "#FF4B4B",
-          marginLeft: 16, flexShrink: 0,
-          animation: "pulseDot 2s infinite",
-        }} />
-        <div style={{ flex: 1, overflow: "hidden" }}>
-          <span style={{
-            display: "inline-block",
-            whiteSpace: "nowrap",
-            fontFamily: "Geist, monospace",
-            fontSize: 11,
-            letterSpacing: "0.08em",
-            color: "#c8c5cc",
-            textTransform: "uppercase",
-            animation: "tickerScroll 30s linear infinite",
-          }}>
-            42 games live &nbsp;·&nbsp; 18,406 voting &nbsp;·&nbsp; 1,247 moves/min &nbsp;·&nbsp; Biggest pool: 25,000 pts &nbsp;·&nbsp; Grandmaster Tournament in 14:02 &nbsp;·&nbsp; New Challenge from Magnus &nbsp;&nbsp;&nbsp;&nbsp; 42 games live &nbsp;·&nbsp; 18,406 voting &nbsp;·&nbsp; 1,247 moves/min
-          </span>
-        </div>
+        <span style={{
+          display: "inline-flex", alignItems: "center", gap: 28,
+          whiteSpace: "nowrap",
+          fontFamily: geist, fontSize: 11, letterSpacing: "0.1em",
+          color: "#c5c0ff", textTransform: "uppercase",
+          animation: "tickerScroll 32s linear infinite",
+        }}>
+          {[0, 1].map((n) => (
+            <span key={n} style={{ display: "inline-flex", alignItems: "center", gap: 28, paddingRight: 28 }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#FF4B4B", animation: "pulseDot 2s infinite", display: "inline-block" }} />
+                42 games live
+              </span>
+              <span>· 18,406 voting</span>
+              <span>· 1,247 moves/min</span>
+              <span>· Biggest pool: 25,000 pts</span>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#FF4B4B", animation: "pulseDot 2s infinite", display: "inline-block" }} />
+                Grandmaster tournament starting in 14:02
+              </span>
+              <span>· New challenge from Magnus</span>
+            </span>
+          ))}
+        </span>
       </div>
 
-      {/* ── Board area ── */}
-      <main style={{ maxWidth: 920, margin: "0 auto", padding: "32px 16px 80px" }}>
-        <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
+      {/* ═══ Hero ═══ */}
+      <section style={{
+        maxWidth: 1280, margin: "0 auto", padding: "72px 24px",
+        display: "grid", gap: 56, alignItems: "center",
+      }} className="lg:grid-cols-2">
 
-          {/* Board column */}
-          <div style={{ flex: 1, minWidth: 0 }}>
+        {/* Left */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+          <h1 style={{ fontFamily: sora, fontSize: "clamp(38px, 5vw, 56px)", fontWeight: 800, lineHeight: 1.15, letterSpacing: "-0.02em", margin: 0 }}>
+            Play chess against<br />
+            <span style={{ color: "#fabd00" }}>thousands.</span>
+          </h1>
 
-            {/* Black player */}
-            <div style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              marginBottom: 8, padding: "0 4px",
-            }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{
-                  width: 32, height: 32, borderRadius: "50%",
-                  background: "#333348", border: "1px solid rgba(255,255,255,0.1)",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 16, color: "#e2e0fc",
-                }}>♚</div>
-                <span style={{ fontFamily: "DM Sans, sans-serif", fontSize: 14, fontWeight: 600, color: "#e2e0fc" }}>Black</span>
+          <p style={{ fontFamily: dmSans, fontSize: 18, lineHeight: 1.6, color: "#c8c5cc", maxWidth: 460, margin: 0 }}>
+            Where every viewer becomes a player. Predict, vote, and outsmart the world in real-time grandmaster matches.
+          </p>
+
+          {/* Stats strip */}
+          <div style={{
+            display: "flex", gap: 48, padding: "20px 0",
+            borderTop: "1px solid rgba(255,255,255,0.06)",
+            borderBottom: "1px solid rgba(255,255,255,0.06)",
+            width: "fit-content",
+          }}>
+            {[["38K", "Players"], ["1.2M", "Votes"], ["9.8K", "Games"]].map(([num, label]) => (
+              <div key={label}>
+                <div style={{ fontFamily: sora, fontSize: 24, fontWeight: 700, color: "#e2e0fc" }}>{num}</div>
+                <div style={{ fontFamily: geist, fontSize: 11, letterSpacing: "0.1em", color: "#929096", textTransform: "uppercase", marginTop: 2 }}>{label}</div>
               </div>
-              <CapturedPieces pieces={capturedByBlack} advantage={advantage < 0 ? Math.abs(advantage) : 0} />
-            </div>
+            ))}
+          </div>
 
-            {/* Chess board */}
-            <div style={{ borderRadius: 12, overflow: "hidden", boxShadow: "0 0 40px rgba(61,40,191,0.12), 0 8px 32px rgba(0,0,0,0.5)" }}>
-              <Chessboard
-                options={{
-                  position: game.fen(),
-                  boardOrientation: boardFlipped ? "black" : "white",
-                  onPieceDrop: ({ sourceSquare, targetSquare }) => {
-                    if (!targetSquare) return false;
-                    return tryMove(sourceSquare as Square, targetSquare as Square);
-                  },
-                  onSquareClick,
-                  squareStyles,
-                  boardStyle: { borderRadius: 0, boxShadow: "none" },
-                  darkSquareStyle: { backgroundColor: "#4a3728" },
-                  lightSquareStyle: { backgroundColor: "#e8c888" },
-                  allowDragging: !isGameOver,
-                }}
-              />
-            </div>
-
-            {/* White player */}
-            <div style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              marginTop: 8, padding: "0 4px",
+          {/* CTAs */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
+            <Link href="/signup" style={{
+              background: "#3d28bf", color: "#fff",
+              padding: "16px 32px", borderRadius: 14,
+              fontFamily: sora, fontWeight: 700, fontSize: 17,
+              textDecoration: "none",
+              display: "inline-flex", alignItems: "center", gap: 8,
+              boxShadow: "0 0 25px rgba(124,111,255,0.35)",
             }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{
-                  width: 32, height: 32, borderRadius: "50%",
-                  background: "#e8e8e8", border: "1px solid rgba(255,255,255,0.2)",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 16, color: "#1a1a28",
-                }}>♔</div>
-                <span style={{ fontFamily: "DM Sans, sans-serif", fontSize: 14, fontWeight: 600, color: "#e2e0fc" }}>White</span>
-              </div>
-              <CapturedPieces pieces={capturedByWhite} advantage={advantage > 0 ? advantage : 0} />
-            </div>
+              Get 500 free points →
+            </Link>
+            <Link href="/play" style={{
+              border: "1px solid rgba(255,255,255,0.12)", color: "#e2e0fc",
+              padding: "16px 32px", borderRadius: 14,
+              fontFamily: sora, fontWeight: 700, fontSize: 17,
+              textDecoration: "none", background: "rgba(26,26,46,0.5)",
+            }}>
+              Watch live →
+            </Link>
+          </div>
+        </div>
 
-            {/* Status + controls */}
-            <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+        {/* Right — live preview card */}
+        <div style={{ ...glass, borderRadius: 24, padding: 28, position: "relative", overflow: "hidden" }}>
+          <div style={{ position: "absolute", top: -96, right: -96, width: 256, height: 256, background: "rgba(197,192,255,0.08)", filter: "blur(80px)", borderRadius: "50%" }} />
+
+          {/* Card head */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{
-                flex: 1, padding: "10px 16px",
-                borderRadius: 12, textAlign: "center",
-                fontFamily: "Sora, sans-serif", fontSize: 13, fontWeight: 600,
-                ...(isGameOver
-                  ? { background: "rgba(21,13,0,0.9)", border: "1px solid rgba(250,189,0,0.3)", color: "#fabd00" }
-                  : game.isCheck()
-                  ? { background: "rgba(147,0,10,0.4)", border: "1px solid rgba(255,75,75,0.3)", color: "#FF4B4B" }
-                  : { background: "#1e1e32", border: "1px solid rgba(255,255,255,0.06)", color: "#c8c5cc" }),
-              }}>{status}</div>
-
-              <button
-                onClick={() => setBoardFlipped(f => !f)}
-                title="Flip board"
-                style={{
-                  padding: "10px 14px",
-                  background: "#1e1e32", border: "1px solid rgba(255,255,255,0.06)",
-                  borderRadius: 12, color: "#c8c5cc", fontSize: 16, cursor: "pointer",
-                }}>⇅</button>
-
-              <button
-                onClick={resetGame}
-                style={{
-                  padding: "10px 18px",
-                  background: "#3d28bf", border: "none",
-                  borderRadius: 12, color: "#fff",
-                  fontFamily: "Sora, sans-serif", fontSize: 13, fontWeight: 600,
-                  cursor: "pointer",
-                  boxShadow: "0 0 12px rgba(61,40,191,0.35)",
-                }}>New game</button>
+                width: 40, height: 40, borderRadius: "50%",
+                background: "#0d0d1a", border: "1px solid rgba(255,255,255,0.08)",
+                display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18,
+              }}>👥</div>
+              <span style={{ fontFamily: sora, fontWeight: 700, fontSize: 17 }}>The Crowd</span>
+            </div>
+            <div style={{
+              background: "#150d00", border: "1px solid rgba(250,189,0,0.4)",
+              color: "#fabd00", padding: "5px 14px", borderRadius: 999,
+              fontFamily: geist, fontSize: 12, display: "flex", alignItems: "center", gap: 6,
+            }}>
+              ⏱ 0:{String(timer).padStart(2, "0")} remaining
             </div>
           </div>
 
-          {/* Move history */}
-          <div style={{
-            width: 168, flexShrink: 0,
-            background: "#1e1e32", borderRadius: 12,
-            border: "1px solid rgba(255,255,255,0.06)",
-            display: "flex", flexDirection: "column",
-            overflow: "hidden",
-            boxShadow: "0 4px 24px rgba(0,0,0,0.3)",
-          }}>
-            <div style={{
-              padding: "10px 14px",
-              borderBottom: "1px solid rgba(255,255,255,0.06)",
-              fontFamily: "Geist, monospace", fontSize: 11,
-              color: "#929096", letterSpacing: "0.08em", textTransform: "uppercase",
-            }}>Moves</div>
+          <MiniBoard />
 
-            <div ref={historyRef} style={{ flex: 1, overflowY: "auto", maxHeight: 480, padding: 4 }}>
-              {pairMoves(moveHistory).length === 0 ? (
-                <p style={{ fontFamily: "DM Sans, sans-serif", fontSize: 12, color: "#47464c", textAlign: "center", padding: "24px 0" }}>
-                  No moves yet
-                </p>
-              ) : (
-                pairMoves(moveHistory).map(([white, black], i) => (
-                  <div key={i} style={{ display: "flex", fontSize: 12, marginBottom: 2 }}>
-                    <span style={{ width: 28, color: "#47464c", padding: "3px 4px", fontFamily: "Geist, monospace" }}>{i + 1}.</span>
-                    <span style={{ flex: 1, padding: "3px 4px", color: "#e2e0fc", fontFamily: "DM Sans, sans-serif", borderRadius: 4, cursor: "pointer" }}>{white}</span>
-                    {black && <span style={{ flex: 1, padding: "3px 4px", color: "#e2e0fc", fontFamily: "DM Sans, sans-serif", borderRadius: 4, cursor: "pointer" }}>{black}</span>}
+          {/* Votes */}
+          <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontFamily: geist, fontSize: 11, letterSpacing: "0.1em", color: "#929096", textTransform: "uppercase" }}>
+              <span>Current Votes</span>
+              <span>Total: 842</span>
+            </div>
+            <VoteBar move="e4" pct={67} primary />
+            <VoteBar move="Nf3" pct={33} />
+          </div>
+
+          {/* Host row */}
+          <div style={{ marginTop: 20, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: "50%",
+                background: "linear-gradient(135deg, #3d28bf, #1a1a2e)",
+                display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16,
+              }}>♟</div>
+              <div>
+                <div style={{ fontFamily: dmSans, fontWeight: 700, fontSize: 14 }}>KingSlayer94</div>
+                <div style={{ fontFamily: geist, fontSize: 11, color: "#FF4B4B", display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#FF4B4B", animation: "pulseDot 2s infinite", display: "inline-block" }} />
+                  LIVE · 3,241
+                </div>
+              </div>
+            </div>
+            <Link href="/play" style={{
+              background: "#333348", color: "#e2e0fc",
+              padding: "9px 18px", borderRadius: 10,
+              fontFamily: sora, fontWeight: 700, fontSize: 12, letterSpacing: "0.05em",
+              textDecoration: "none",
+            }}>VOTE NOW</Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ═══ Arena Experience ═══ */}
+      <section style={{ maxWidth: 1280, margin: "0 auto", padding: "72px 24px" }}>
+        <h2 style={{ fontFamily: sora, fontSize: 32, fontWeight: 700, textAlign: "center", marginBottom: 56 }}>The Arena Experience</h2>
+        <div style={{ display: "grid", gap: 24 }} className="md:grid-cols-3">
+          {[
+            { icon: "👤", accent: "#c5c0ff", title: "Join", body: "Step into any active match as part of the collective mind. Sign up in seconds and play for free." },
+            { icon: "🗳️", accent: "#fabd00", title: "Vote", body: "Analyze the board and cast your vote. The move with the most community support gets played on the board." },
+            { icon: "💰", accent: "#00E676", title: "Earn", body: "Win matches to climb the leaderboard and earn points, badges, and real community rewards." },
+          ].map(({ icon, accent, title, body }) => (
+            <div key={title} style={{
+              ...glass, borderRadius: 24, padding: 36,
+              borderTop: `2px solid ${accent}33`,
+            }}>
+              <div style={{
+                width: 60, height: 60, borderRadius: 16,
+                background: "#333348",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 28, marginBottom: 28,
+              }}>{icon}</div>
+              <h3 style={{ fontFamily: sora, fontSize: 20, fontWeight: 700, marginBottom: 12, color: accent }}>{title}</h3>
+              <p style={{ fontFamily: dmSans, fontSize: 15, lineHeight: 1.6, color: "#c8c5cc", margin: 0 }}>{body}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ═══ Top Strategists + Brilliant Move ═══ */}
+      <section style={{
+        maxWidth: 1280, margin: "0 auto", padding: "72px 24px",
+        display: "grid", gap: 40,
+      }} className="lg:grid-cols-2">
+
+        {/* Top Strategists */}
+        <div>
+          <h2 style={{ fontFamily: sora, fontSize: 28, fontWeight: 700, marginBottom: 28 }}>Top Strategists</h2>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            {[
+              { rank: "01", name: "Grandmaster_V", elr: "2,840 ELR", acc: "+12.4%", gold: true },
+              { rank: "02", name: "Checkmate_Queen", elr: "2,715 ELR", acc: "+8.1%", gold: false },
+              { rank: "03", name: "Gambit_Master", elr: "2,690 ELR", acc: "+5.2%", gold: false },
+            ].map(({ rank, name, elr, acc, gold }) => (
+              <div key={rank} style={{
+                ...glass, borderRadius: 14, padding: 16,
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                  <span style={{ fontFamily: geist, fontSize: 14, color: gold ? "#fabd00" : "#929096", width: 24 }}>{rank}</span>
+                  <div style={{
+                    width: 46, height: 46, borderRadius: 12,
+                    background: "linear-gradient(135deg, #28283d, #1a1a2e)",
+                    display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20,
+                  }}>{gold ? "♛" : "♞"}</div>
+                  <div>
+                    <div style={{ fontFamily: dmSans, fontWeight: 700, fontSize: 15 }}>{name}</div>
+                    <div style={{ fontFamily: geist, fontSize: 12, color: "#929096" }}>{elr}</div>
                   </div>
-                ))
-              )}
-            </div>
-
-            <div style={{
-              padding: "8px 14px",
-              borderTop: "1px solid rgba(255,255,255,0.06)",
-              fontFamily: "Geist, monospace", fontSize: 11, color: "#47464c",
-            }}>{moveHistory.length} move{moveHistory.length !== 1 ? "s" : ""}</div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontFamily: geist, fontSize: 14, fontWeight: 700, color: "#00E676" }}>{acc}</div>
+                  <div style={{ fontFamily: geist, fontSize: 10, color: "#929096", textTransform: "uppercase", letterSpacing: "0.08em" }}>Accuracy</div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
-      </main>
 
-      {/* ── Promotion dialog ── */}
-      {promotion && (
+        {/* Brilliant Move */}
         <div style={{
-          position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", backdropFilter: "blur(4px)",
-          display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100,
+          background: "linear-gradient(135deg, #1A1A2E 0%, rgba(250,189,0,0.08) 100%)",
+          border: "1px solid rgba(250,189,0,0.3)",
+          borderRadius: 24, padding: 32,
+          boxShadow: "0 0 30px rgba(250,189,0,0.15)",
         }}>
-          <div style={{
-            background: "#1e1e32", border: "1px solid rgba(255,255,255,0.08)",
-            borderRadius: 20, padding: 28, textAlign: "center",
-          }}>
-            <p style={{ fontFamily: "Sora, sans-serif", fontSize: 14, fontWeight: 600, color: "#e2e0fc", marginBottom: 16 }}>
-              Choose promotion piece
-            </p>
-            <div style={{ display: "flex", gap: 12 }}>
-              {(["q", "r", "b", "n"] as const).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => { applyMove(promotion.from, promotion.to, p); setPromotion(null); }}
-                  style={{
-                    width: 56, height: 56, background: "#28283d",
-                    border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12,
-                    fontSize: 28, cursor: "pointer", color: "#e2e0fc",
-                  }}
-                >
-                  {PIECE_UNICODE[`${promotion.color}${p.toUpperCase()}`]}
-                </button>
-              ))}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
+            <div>
+              <span style={{
+                background: "#fabd00", color: "#3f2e00",
+                padding: "4px 12px", borderRadius: 999,
+                fontFamily: geist, fontSize: 10, fontWeight: 700,
+                letterSpacing: "0.12em", textTransform: "uppercase",
+                display: "inline-block", marginBottom: 10,
+              }}>Brilliant Move of the Day</span>
+              <h3 style={{ fontFamily: sora, fontSize: 22, fontWeight: 700, margin: 0 }}>The &quot;Silent&quot; Sacrifice</h3>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontFamily: geist, fontSize: 16, fontWeight: 700, color: "#fabd00" }}>99.8%</div>
+              <div style={{ fontFamily: geist, fontSize: 10, color: "#929096", textTransform: "uppercase" }}>Precision</div>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* ── Bottom nav (mobile) ── */}
-      <nav style={{
-        position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 50,
-        background: "rgba(30,30,50,0.97)", backdropFilter: "blur(12px)",
-        borderTop: "1px solid rgba(255,255,255,0.06)",
-        display: "flex", justifyContent: "space-around", alignItems: "center",
-        height: 72, padding: "0 8px",
-      }} className="md:hidden">
-        {[
-          { icon: "home", label: "Home", href: "/", active: true },
-          { icon: "sensors", label: "Live", href: "#", active: false },
-          { icon: "grid_view", label: "Play", href: "#", active: false },
-          { icon: "person", label: "Profile", href: "/profile", active: false },
-        ].map(({ icon, label, href, active }) => (
-          <Link key={label} href={href} style={{
-            display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
-            textDecoration: "none",
-            color: active ? "#c5c0ff" : "#929096",
-            background: active ? "rgba(61,40,191,0.2)" : "transparent",
-            borderRadius: 12, padding: "6px 16px",
+          {/* Replay panel */}
+          <div style={{
+            aspectRatio: "16 / 9",
+            background: "#0c0c1f", borderRadius: 16,
+            border: "1px solid rgba(255,255,255,0.06)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            flexDirection: "column", gap: 12, marginBottom: 20,
+            position: "relative", overflow: "hidden",
           }}>
-            <span className="material-symbols-outlined" style={{ fontSize: 22, fontVariationSettings: active ? "'FILL' 1" : "'FILL' 0" }}>{icon}</span>
-            <span style={{ fontSize: 10, fontFamily: "Geist, monospace", letterSpacing: "0.06em" }}>{label}</span>
-          </Link>
-        ))}
-      </nav>
+            <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 60% 40%, rgba(250,189,0,0.12), transparent 60%)" }} />
+            <div style={{
+              width: 64, height: 64, borderRadius: "50%", background: "#fabd00",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 26, color: "#3f2e00",
+              boxShadow: "0 0 30px rgba(250,189,0,0.5)", zIndex: 1,
+            }}>▶</div>
+            <span style={{ fontFamily: sora, fontSize: 13, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", zIndex: 1 }}>Watch Replay</span>
+          </div>
 
-      {/* Inline keyframe animations */}
+          <p style={{ fontFamily: dmSans, fontSize: 14, fontStyle: "italic", color: "#c8c5cc", margin: 0 }}>
+            &quot;A calculated risk that forced a back-rank mate in 4.&quot;
+          </p>
+        </div>
+      </section>
+
+      {/* ═══ Bottom CTA ═══ */}
+      <section style={{ maxWidth: 1280, margin: "0 auto", padding: "72px 24px 110px" }}>
+        <div style={{
+          ...glass, borderRadius: 48, padding: "clamp(48px, 8vw, 90px) 32px",
+          textAlign: "center", position: "relative", overflow: "hidden",
+        }}>
+          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(45deg, rgba(197,192,255,0.04), transparent)" }} />
+          <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: 28 }}>
+            <h2 style={{ fontFamily: sora, fontSize: "clamp(28px, 4.5vw, 46px)", fontWeight: 800, letterSpacing: "-0.02em", margin: 0 }}>
+              Ready to play against thousands?
+            </h2>
+            <Link href="/signup" style={{
+              background: "#3d28bf", color: "#fff",
+              padding: "20px 48px", borderRadius: 18,
+              fontFamily: sora, fontWeight: 700, fontSize: 19,
+              textDecoration: "none",
+              boxShadow: "0 0 35px rgba(124,111,255,0.4)",
+            }}>Join ChessLive Arena</Link>
+            <p style={{ fontFamily: geist, fontSize: 11, letterSpacing: "0.1em", color: "#929096", textTransform: "uppercase", margin: 0 }}>
+              Free to join · No credit card required · Instant play
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ═══ Footer ═══ */}
+      <footer style={{
+        background: "#0c0c1f", borderTop: "1px solid rgba(255,255,255,0.06)",
+        padding: "48px 24px",
+      }}>
+        <div style={{
+          maxWidth: 1280, margin: "0 auto",
+          display: "flex", flexWrap: "wrap", justifyContent: "space-between",
+          alignItems: "center", gap: 32,
+        }}>
+          <div>
+            <div style={{ fontFamily: sora, fontSize: 18, fontWeight: 700, color: "#c7c4d7" }}>ChessLive</div>
+            <p style={{ fontFamily: dmSans, fontSize: 13, color: "#929096", margin: "6px 0 0" }}>© 2026 ChessLive. Precision in every move.</p>
+          </div>
+          <div style={{ display: "flex", gap: 28, flexWrap: "wrap" }}>
+            {["Privacy Policy", "Terms of Service", "Cookie Settings", "Press Kit"].map((l) => (
+              <a key={l} href="#" style={{ fontFamily: dmSans, fontSize: 13, color: "#929096", textDecoration: "none" }}>{l}</a>
+            ))}
+          </div>
+        </div>
+      </footer>
+
+      {/* Keyframes */}
       <style>{`
         @keyframes pulseDot {
-          0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255,75,75,0.7); }
-          70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(255,75,75,0); }
-          100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255,75,75,0); }
+          0% { transform: scale(0.9); opacity: 1; }
+          50% { transform: scale(1.35); opacity: 0.5; }
+          100% { transform: scale(0.9); opacity: 1; }
         }
         @keyframes tickerScroll {
           0% { transform: translateX(0); }
           100% { transform: translateX(-50%); }
+        }
+        @keyframes pulseSq {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.45; }
         }
       `}</style>
     </div>
